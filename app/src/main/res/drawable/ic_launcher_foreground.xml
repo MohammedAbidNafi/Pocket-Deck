@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Launcher icon foreground: the logo parts stacked. The startup intro animates the same parts.
+  The 3dp inset keeps the grips clear of circular / squircle masks.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:left="3dp" android:top="3dp" android:right="3dp" android:bottom="3dp" android:drawable="@drawable/logo_ring" />
+    <item android:left="3dp" android:top="3dp" android:right="3dp" android:bottom="3dp" android:drawable="@drawable/logo_grip_left" />
+    <item android:left="3dp" android:top="3dp" android:right="3dp" android:bottom="3dp" android:drawable="@drawable/logo_grip_right" />
+    <item android:left="3dp" android:top="3dp" android:right="3dp" android:bottom="3dp" android:drawable="@drawable/logo_phone" />
+    <item android:left="3dp" android:top="3dp" android:right="3dp" android:bottom="3dp" android:drawable="@drawable/logo_droid" />
+</layer-list>

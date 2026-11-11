@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path android:pathData="M68.7,43.6 L72.4,43.1 C76.7,42.7 78.9,44.7 80.2,47.2 L83.0,54 C84.5,58.3 83.6,63.9 78.9,64.7 C77.4,64.9 76.1,64.5 74.9,64.0 L68.6,61.3 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="54" android:startY="42.5" android:endX="54" android:endY="65"
+                android:startColor="#FFF7F3FF" android:endColor="#FFB4A0FF" />
+        </aapt:attr>
+    </path>
+    <!-- Face buttons -->
+    <path android:fillColor="#FF0B0820"
+        android:pathData="M74.4,49.2 a1.5,1.5 0 1,0 3,0 a1.5,1.5 0 1,0 -3,0 Z M74.4,54.8 a1.5,1.5 0 1,0 3,0 a1.5,1.5 0 1,0 -3,0 Z M71.6,52 a1.5,1.5 0 1,0 3,0 a1.5,1.5 0 1,0 -3,0 Z M77.2,52 a1.5,1.5 0 1,0 3,0 a1.5,1.5 0 1,0 -3,0 Z" />
+</vector>

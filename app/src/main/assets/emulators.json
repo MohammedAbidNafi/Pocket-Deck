@@ -1,0 +1,155 @@
+[
+  {
+    "id": "retroarch", "name": "RetroArch",
+    "packages": ["com.retroarch.aarch64", "com.retroarch", "com.retroarch.ra32"],
+    "platforms": ["nes", "snes", "n64", "gb", "gbc", "gba", "nds", "psx", "psp", "genesis", "segacd", "32x", "sms", "gamegear", "saturn", "dreamcast", "pce", "ngp", "atari2600", "arcade"],
+    "activity": "com.retroarch.browser.retroactivity.RetroActivityFuture",
+    "action": "android.intent.action.MAIN",
+    "extras": {
+      "ROM": "{rom_path}",
+      "LIBRETRO": "/data/data/{package}/cores/{core}_libretro_android.so",
+      "CONFIGFILE": "/storage/emulated/0/Android/data/{package}/files/retroarch.cfg",
+      "QUITFOCUS": ""
+    },
+    "flags": ["clear_task", "clear_top", "no_history"],
+    "needsFilePath": true,
+    "note": "Needs RetroArch's own 'All files access' and the core for each system downloaded inside RetroArch."
+  },
+  {
+    "id": "dolphin", "name": "Dolphin",
+    "packages": ["org.dolphinemu.dolphinemu", "org.dolphinemu.mmjr", "org.mm.jr"],
+    "platforms": ["gc", "wii"],
+    "activity": "org.dolphinemu.dolphinemu.ui.main.MainActivity",
+    "action": "android.intent.action.VIEW",
+    "extras": { "AutoStartFile": "{rom_uri}" },
+    "flags": ["clear_task", "clear_top"]
+  },
+  {
+    "id": "ppsspp", "name": "PPSSPP",
+    "packages": ["org.ppsspp.ppssppgold", "org.ppsspp.ppsspp"],
+    "platforms": ["psp"],
+    "activity": "org.ppsspp.ppsspp.PpssppActivity",
+    "action": "android.intent.action.VIEW",
+    "data": "{rom_uri}",
+    "flags": ["clear_task", "clear_top"]
+  },
+  {
+    "id": "duckstation", "name": "DuckStation",
+    "packages": ["com.github.stenzek.duckstation"],
+    "platforms": ["psx"],
+    "activity": "com.github.stenzek.duckstation.EmulationActivity",
+    "action": "android.intent.action.MAIN",
+    "extras": { "bootPath": "{rom_uri}" },
+    "flags": ["clear_task", "clear_top", "no_history"]
+  },
+  {
+    "id": "aethersx2", "name": "AetherSX2 / NetherSX2",
+    "packages": ["xyz.aethersx2.android", "xyz.aethersx2.custom"],
+    "platforms": ["ps2"],
+    "activity": "xyz.aethersx2.android.EmulationActivity",
+    "action": "android.intent.action.MAIN",
+    "extras": { "bootPath": "{rom_uri}" },
+    "flags": ["clear_task", "clear_top", "no_history"]
+  },
+  {
+    "id": "nethersx2", "name": "NetherSX2 (Patched)",
+    "packages": ["xyz.nethersx2.android"],
+    "platforms": ["ps2"],
+    "activity": "xyz.aethersx2.android.EmulationActivity",
+    "action": "android.intent.action.MAIN",
+    "extras": { "bootPath": "{rom_uri}" },
+    "flags": ["clear_task", "clear_top", "no_history"]
+  },
+  {
+    "id": "melonds", "name": "melonDS",
+    "packages": ["me.magnum.melonds", "me.magnum.melonds.nightly"],
+    "platforms": ["nds"],
+    "activity": "me.magnum.melonds.ui.emulator.EmulatorActivity",
+    "action": "me.magnum.melonds.LAUNCH_ROM",
+    "extras": { "uri": "{rom_uri}" },
+    "flags": ["clear_task", "clear_top"]
+  },
+  {
+    "id": "drastic", "name": "DraStic",
+    "packages": ["com.dsemu.drastic"],
+    "platforms": ["nds"],
+    "activity": "com.dsemu.drastic.DraSticActivity",
+    "action": "android.intent.action.MAIN",
+    "extras": { "GAMEPATH": "{rom_path}" },
+    "flags": ["clear_task", "clear_top"],
+    "needsFilePath": true
+  },
+  {
+    "id": "azahar", "name": "Azahar",
+    "packages": ["io.github.lime3ds.android", "org.azahar_emu.azahar", "io.github.borked3ds.android", "org.citra.citra_emu", "org.citra.citra_emu.canary"],
+    "platforms": ["3ds"],
+    "activity": "org.citra.citra_emu.activities.EmulationActivity",
+    "action": "android.intent.action.VIEW",
+    "data": "{rom_uri}",
+    "flags": ["clear_task", "clear_top"]
+  },
+  {
+    "id": "m64plusfz", "name": "Mupen64Plus FZ",
+    "packages": ["org.mupen64plusae.v3.fzurita.pro", "org.mupen64plusae.v3.fzurita"],
+    "platforms": ["n64"],
+    "activity": "paulscode.android.mupen64plusae.SplashActivity",
+    "action": "android.intent.action.VIEW",
+    "data": "{rom_uri}",
+    "flags": ["clear_task", "clear_top"]
+  },
+  {
+    "id": "redream", "name": "Redream",
+    "packages": ["io.recompiled.redream"],
+    "platforms": ["dreamcast"],
+    "activity": "io.recompiled.redream.MainActivity",
+    "action": "android.intent.action.VIEW",
+    "data": "{rom_uri}",
+    "flags": ["clear_task", "clear_top"]
+  },
+  {
+    "id": "flycast", "name": "Flycast",
+    "packages": ["com.flycast.emulator"],
+    "platforms": ["dreamcast", "arcade"],
+    "activity": "com.flycast.emulator.MainActivity",
+    "action": "android.intent.action.VIEW",
+    "data": "{rom_uri}",
+    "flags": ["clear_task", "clear_top"]
+  },
+  {
+    "id": "yabasanshiro", "name": "Yaba Sanshiro 2",
+    "packages": ["org.devmiyax.yabasanshioro2.pro", "org.devmiyax.yabasanshioro2"],
+    "platforms": ["saturn"],
+    "activity": "org.uoyabause.android.Yabause",
+    "action": "android.intent.action.MAIN",
+    "extras": { "org.uoyabause.android.FileNameEx": "{rom_path}" },
+    "flags": ["clear_task", "clear_top"],
+    "needsFilePath": true
+  },
+  {
+    "id": "mame4droid", "name": "MAME4droid",
+    "packages": ["com.seleuco.mame4d2024", "com.seleuco.mame4droid"],
+    "platforms": ["arcade"],
+    "activity": "com.seleuco.mame4droid.MAME4droid",
+    "action": "android.intent.action.VIEW",
+    "data": "{rom_uri}",
+    "flags": ["clear_task", "clear_top"]
+  },
+  {
+    "id": "eden", "name": "Eden / Citron (Switch)",
+    "packages": ["dev.eden.eden_emulator", "org.citron.citron_emu"],
+    "platforms": [],
+    "standaloneOnly": true
+  },
+  {
+    "id": "scummvm", "name": "ScummVM",
+    "packages": ["org.scummvm.scummvm"],
+    "platforms": [],
+    "standaloneOnly": true
+  },
+  {
+    "id": "lemuroid", "name": "Lemuroid",
+    "packages": ["com.swordfish.lemuroid"],
+    "platforms": [],
+    "standaloneOnly": true
+  }
+]

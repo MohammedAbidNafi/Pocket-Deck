@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">PocketDeck</string>
+    <string name="tile_label">PocketDeck</string>
+    <string name="widget_label">PocketDeck games</string>
+    <string name="widget_description">Jump straight into a game: last played, recently added, favourites, all games or any collection</string>
+    <string name="controller_shortcut_label">PocketDeck controller shortcut</string>
+    <string name="controller_shortcut_summary">Hold Select + Start on your controller to open PocketDeck from any game</string>
+    <string name="controller_shortcut_description">Lets you hold Select + Start (View + Menu on Xbox controllers) on a game controller to return to PocketDeck from inside any game. It only looks at controller button presses, passes them on to the game unchanged, and does not read the screen, record anything or send data anywhere.</string>
+</resources>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="bg">#FF0A0D13</color>
+    <color name="icon_bg">#FF101521</color>
+    <!-- Startup backdrop; matches the animated intro so there is no colour jump. -->
+    <color name="splash_bg">#FF0B0820</color>
+
+    <style name="Theme.PocketDeck" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/splash_bg</item>
+        <item name="android:colorBackground">@color/bg</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+    </style>
+</resources>

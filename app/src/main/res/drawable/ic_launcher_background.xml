@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path android:pathData="M0,0 H108 V108 H0 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="18" android:startY="12" android:endX="80" android:endY="104"
+                android:startColor="#FF2A1488" android:centerColor="#FF0C0926" android:endColor="#FF15127A" />
+        </aapt:attr>
+    </path>
+    <!-- Darker centre so the logo pops. -->
+    <path android:pathData="M0,0 H108 V108 H0 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="radial" android:centerX="54" android:centerY="54" android:gradientRadius="38"
+                android:startColor="#E6070618" android:endColor="#00070618" />
+        </aapt:attr>
+    </path>
+    <!-- Blue glow along the bottom edge. -->
+    <path android:pathData="M0,0 H108 V108 H0 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="radial" android:centerX="54" android:centerY="92" android:gradientRadius="24"
+                android:startColor="#B33A3BFF" android:endColor="#003A3BFF" />
+        </aapt:attr>
+    </path>
+</vector>

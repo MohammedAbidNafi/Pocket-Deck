@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Neon ring, cut horizontally where the controller grips pass in front of it. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group android:name="ring">
+        <clip-path android:pathData="M0,0 H108 V41.3 H0 Z M0,65.8 H108 V108 H0 Z" />
+        <!-- Glow -->
+        <path
+            android:strokeWidth="6.5"
+            android:strokeAlpha="0.22"
+            android:pathData="M54,32.65 a21.35,21.35 0 1,1 0,42.7 a21.35,21.35 0 1,1 0,-42.7 Z">
+            <aapt:attr name="android:strokeColor">
+                <gradient android:type="linear" android:startX="54" android:startY="30" android:endX="54" android:endY="78"
+                    android:startColor="#FFB84DFF" android:centerColor="#FF6A5CFF" android:endColor="#FF4DB0FF" />
+            </aapt:attr>
+        </path>
+        <path
+            android:strokeWidth="3.1"
+            android:pathData="M54,32.65 a21.35,21.35 0 1,1 0,42.7 a21.35,21.35 0 1,1 0,-42.7 Z">
+            <aapt:attr name="android:strokeColor">
+                <gradient android:type="linear" android:startX="54" android:startY="31" android:endX="54" android:endY="77"
+                    android:startColor="#FFB84DFF" android:centerColor="#FF6A5CFF" android:endColor="#FF4DB0FF" />
+            </aapt:attr>
+        </path>
+    </group>
+</vector>
