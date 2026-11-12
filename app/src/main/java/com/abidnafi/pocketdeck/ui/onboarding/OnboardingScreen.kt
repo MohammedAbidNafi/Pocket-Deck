@@ -113,8 +113,11 @@ private const val STEPS = 5
 @Composable
 fun OnboardingScreen(nav: NavController) {
     val container = LocalAppContainer.current
-    var step by rememberSaveable { mutableIntStateOf(0) }
+    // Resume where setup was: becoming the home app makes Android start a fresh PocketDeck.
+    val savedStep = LocalSettings.current.onboardingStep
+    var step by rememberSaveable { mutableIntStateOf(savedStep.coerceIn(0, STEPS - 1)) }
     var finishing by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(step) { container.settings.setOnboardingStep(step) }
 
     BackHandler(enabled = step > 0 || finishing) { if (!finishing) step-- }
     ButtonHints(Hint(Btn.CONFIRM, "Select"), Hint(Btn.BACK, if (step > 0) "Previous" else "Exit"))
@@ -380,9 +383,13 @@ private fun HomeScreenStep(onFinish: () -> Unit) {
     val state = home.state
     val useCard = remember { FocusRequester() }
     val keepCard = remember { FocusRequester() }
-    // Set when the user picks "Make it my home screen" here, so a device that already uses
-    // PocketDeck as home (re-running setup) doesn't skip this page on its own.
-    var requested by remember { mutableStateOf(false) }
+    val repo = LocalAppContainer.current.settings
+    val scope = rememberCoroutineScope()
+    // Set when the user picks "Make it my home screen" here (saved, because Android restarts
+    // PocketDeck as the new home app), so re-running setup on a device that already uses
+    // PocketDeck as home doesn't skip this page on its own.
+    val savedRequest = LocalSettings.current.onboardingHomeRequested
+    var requested by remember { mutableStateOf(savedRequest) }
     // Android's prompt confirmed PocketDeck as the home app: setup is done.
     LaunchedEffect(state.isDefault, requested) { if (requested && state.isDefault) onFinish() }
 
@@ -403,6 +410,7 @@ private fun HomeScreenStep(onFinish: () -> Unit) {
                 selected = state.available,
                 onClick = {
                     requested = true
+                    scope.launch { repo.setOnboardingHomeRequested(true) }
                     when {
                         !state.available -> home.toggle()
                         !state.isDefault -> home.makeDefault()

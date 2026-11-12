@@ -73,6 +73,10 @@ data class StreamSettings(
 
 data class Settings(
     val onboardingDone: Boolean = false,
+    /** Setup step reached so far, so setup resumes there if PocketDeck restarts (e.g. becoming the home app). */
+    val onboardingStep: Int = 0,
+    /** The user chose "Make it my home screen" in setup and is waiting for Android to confirm it. */
+    val onboardingHomeRequested: Boolean = false,
     val glyphStyle: GlyphStyle = GlyphStyle.XBOX,
     /** Nintendo-style confirm on the right face button. */
     val swapAB: Boolean = false,
@@ -117,6 +121,8 @@ private const val ROW_SEPARATOR = "|"
 class SettingsRepository(private val context: Context) {
     private object Keys {
         val onboardingDone = booleanPreferencesKey("onboarding_done")
+        val onboardingStep = intPreferencesKey("onboarding_step")
+        val onboardingHomeRequested = booleanPreferencesKey("onboarding_home_requested")
         val glyphStyle = stringPreferencesKey("glyph_style")
         val swapAB = booleanPreferencesKey("swap_ab")
         val uiSounds = booleanPreferencesKey("ui_sounds")
@@ -164,6 +170,8 @@ class SettingsRepository(private val context: Context) {
 
     private fun Preferences.toSettings() = Settings(
         onboardingDone = this[Keys.onboardingDone] ?: false,
+        onboardingStep = this[Keys.onboardingStep] ?: 0,
+        onboardingHomeRequested = this[Keys.onboardingHomeRequested] ?: false,
         glyphStyle = enumOr(this[Keys.glyphStyle], GlyphStyle.XBOX),
         swapAB = this[Keys.swapAB] ?: false,
         uiSounds = this[Keys.uiSounds] ?: true,
@@ -206,7 +214,14 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun current(): Settings = settings.first()
 
-    suspend fun setOnboardingDone(done: Boolean) = edit { it[Keys.onboardingDone] = done }
+    /** Finishing or restarting setup also clears its saved progress. */
+    suspend fun setOnboardingDone(done: Boolean) = edit {
+        it[Keys.onboardingDone] = done
+        it.remove(Keys.onboardingStep)
+        it.remove(Keys.onboardingHomeRequested)
+    }
+    suspend fun setOnboardingStep(step: Int) = edit { it[Keys.onboardingStep] = step }
+    suspend fun setOnboardingHomeRequested(value: Boolean) = edit { it[Keys.onboardingHomeRequested] = value }
     suspend fun setGlyphStyle(style: GlyphStyle) = edit { it[Keys.glyphStyle] = style.name }
     suspend fun setSwapAB(value: Boolean) = edit { it[Keys.swapAB] = value }
     suspend fun setUiSounds(value: Boolean) = edit { it[Keys.uiSounds] = value }
