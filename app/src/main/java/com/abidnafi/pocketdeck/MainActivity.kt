@@ -76,8 +76,15 @@ class MainActivity : ComponentActivity() {
             container.launcher.onReturnedToApp()
             container.library.syncInstalledApps()
         }
+        container.homeMode.refresh()
         // Gaming PCs: who's online, and pick up games added on the PC. Best effort, in the background.
         container.hosts.refreshAll()
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        // Home pressed while PocketDeck (as the home screen) is already open: back to the Home tab.
+        if (intent.hasCategory(android.content.Intent.CATEGORY_HOME)) container.homeMode.onHomePressed()
     }
 
     override fun onPause() {

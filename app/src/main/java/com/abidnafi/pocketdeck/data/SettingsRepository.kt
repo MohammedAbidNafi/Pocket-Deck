@@ -102,6 +102,8 @@ data class Settings(
     val collectionSort: CollectionSort = CollectionSort.NAME,
     /** Collection key (`c:<id>` or an auto collection id) → [GameSort] name. */
     val collectionGameSorts: Map<String, String> = emptyMap(),
+    /** Home-screen mode: the Android launcher "Switch to Android home" opens (package name). */
+    val androidLauncher: String? = null,
 ) {
     fun gameSortFor(collectionKey: String): GameSort =
         collectionGameSorts[collectionKey]?.let { n -> GameSort.entries.firstOrNull { it.name == n } } ?: GameSort.NAME
@@ -151,6 +153,7 @@ class SettingsRepository(private val context: Context) {
         val hiddenAutoCollections = stringSetPreferencesKey("auto_collections_hidden")
         val collectionSort = stringPreferencesKey("collection_sort")
         val collectionGameSorts = stringPreferencesKey("collection_game_sorts")
+        val androidLauncher = stringPreferencesKey("android_launcher")
     }
 
     private val json = Json { ignoreUnknownKeys = true }
@@ -198,6 +201,7 @@ class SettingsRepository(private val context: Context) {
         collectionSort = enumOr(this[Keys.collectionSort], CollectionSort.NAME),
         collectionGameSorts = this[Keys.collectionGameSorts]
             ?.let { runCatching { json.decodeFromString(mapSerializer, it) }.getOrNull() } ?: emptyMap(),
+        androidLauncher = this[Keys.androidLauncher],
     )
 
     suspend fun current(): Settings = settings.first()
@@ -222,6 +226,7 @@ class SettingsRepository(private val context: Context) {
     suspend fun resetHomeRows() = edit { it.remove(Keys.homeRowOrder); it.remove(Keys.hiddenHomeRows) }
     suspend fun setReturnNotification(value: Boolean) = edit { it[Keys.returnNotification] = value }
 
+    suspend fun setAndroidLauncher(pkg: String?) = edit { if (pkg == null) it.remove(Keys.androidLauncher) else it[Keys.androidLauncher] = pkg }
     suspend fun setAutoCollections(value: Boolean) = edit { it[Keys.autoCollections] = value }
     suspend fun setAutoCollectionHidden(id: String, hidden: Boolean) = edit { prefs ->
         val set = prefs[Keys.hiddenAutoCollections].orEmpty()

@@ -33,7 +33,7 @@ Thanks for helping out! Bug reports, ideas and pull requests are all welcome.
 
 ### Releasing
 
-Releases are automatic. To ship a new version, bump `versionName` and `versionCode` in [`app/build.gradle.kts`](app/build.gradle.kts) in a PR. When it merges into `main`, the **Release** workflow sees there's no `v<versionName>` tag yet, builds the release APK, and publishes a GitHub Release with that tag, the APK and generated notes. Pushes that don't change the version do nothing.
+Releases are automatic. To ship a new version, bump `versionName` and `versionCode` in [`app/build.gradle.kts`](app/build.gradle.kts) in a PR, and add a `### <version>` entry under **Release notes** in the [README](README.md). That entry becomes the top of the GitHub Release. When it merges into `main`, the **Release** workflow sees there's no `v<versionName>` tag yet, builds the release APK, and publishes a GitHub Release with that tag, the APK and generated notes. Pushes that don't change the version do nothing.
 
 Release APKs are signed with the maintainer's key when these repository secrets are set: `RELEASE_KEYSTORE_BASE64` (the keystore file, base64-encoded), `RELEASE_KEYSTORE_PASSWORD`, `RELEASE_KEY_ALIAS` and `RELEASE_KEY_PASSWORD`. Without them, the APK is signed with a temporary debug key and the release notes say so. Locally, set `POCKETDECK_KEYSTORE_FILE`, `POCKETDECK_KEYSTORE_PASSWORD`, `POCKETDECK_KEY_ALIAS` and `POCKETDECK_KEY_PASSWORD` to sign a release build the same way.
 

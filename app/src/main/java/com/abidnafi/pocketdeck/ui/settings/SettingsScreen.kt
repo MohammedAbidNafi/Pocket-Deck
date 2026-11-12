@@ -18,6 +18,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardReturn
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.Apps
+import androidx.compose.material.icons.automirrored.rounded.ExitToApp
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.PhoneAndroid
+import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Computer
 import androidx.compose.material.icons.rounded.CollectionsBookmark
 import androidx.compose.material.icons.rounded.Visibility
@@ -149,6 +153,28 @@ fun SettingsScreen(nav: NavController) {
         scope.launch { block() }
     }
 
+    // Home screen mode: re-read the real state whenever this page comes back (the user may have
+    // changed the default home app in Android's settings).
+    val homeMode = container.homeMode
+    val homeState by homeMode.state.collectAsState()
+    androidx.lifecycle.compose.LifecycleResumeEffect(Unit) {
+        homeMode.refresh()
+        onPauseOrDispose { }
+    }
+    val askDefaultHome = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { homeMode.refresh() }
+    fun makeDefaultHome() {
+        try {
+            askDefaultHome.launch(homeMode.makeDefaultIntent())
+        } catch (e: android.content.ActivityNotFoundException) {
+            runCatching { askDefaultHome.launch(homeMode.homeSettingsIntent()) }
+                .onFailure { messages.show("Can't open home settings", "Choose PocketDeck in Android Settings → Apps → Default apps → Home app.") }
+        }
+    }
+    val androidHome = com.abidnafi.pocketdeck.ui.rememberAndroidHomeSwitcher()
+    val launcherLabel = remember(settings.androidLauncher, homeState) {
+        homeMode.preferredLauncher(settings.androidLauncher)?.label
+    }
+
     SettingsPage("Settings") {
         SectionHeader("Library")
         SettingRow(
@@ -187,6 +213,50 @@ fun SettingsScreen(nav: NavController) {
             },
             subtitle = "Stream games from a PC running Sunshine, plus stream quality",
         )
+
+        SectionHeader("Home screen")
+        SettingRow(
+            "Use as home screen",
+            {
+                if (homeState.available) {
+                    val wasDefault = homeState.isDefault
+                    homeMode.setAvailable(false)
+                    if (wasDefault) messages.show(
+                        "PocketDeck isn't your home screen any more",
+                        "Pressing Home now opens your regular launcher (Android may ask which one).",
+                    )
+                } else {
+                    homeMode.setAvailable(true)
+                    makeDefaultHome()
+                }
+            },
+            icon = Icons.Rounded.Home,
+            toggle = homeState.available,
+            subtitle = when {
+                homeState.isDefault -> "PocketDeck opens when you press Home"
+                homeState.available -> "Available as a home app, but not the default yet"
+                else -> "Open PocketDeck when you press Home, like a console"
+            },
+        )
+        if (homeState.available && !homeState.isDefault) {
+            SettingRow(
+                "Make PocketDeck the default", ::makeDefaultHome, icon = Icons.Rounded.CheckCircle,
+                subtitle = "Choose PocketDeck as the home app in Android's prompt",
+            )
+        }
+        if (homeState.available) {
+            SettingRow(
+                "Android launcher", { androidHome.choose() }, icon = Icons.Rounded.PhoneAndroid,
+                value = launcherLabel ?: "Ask",
+                subtitle = "Opened by \"Switch to Android home\" in the Start menu",
+            )
+        }
+        if (homeState.isDefault) {
+            SettingRow(
+                "Switch to Android home", { androidHome.open() }, icon = Icons.AutoMirrored.Rounded.ExitToApp,
+                subtitle = "Go to your regular launcher. Press Home to come back.",
+            )
+        }
 
         SectionHeader("Controller")
         SettingRow(
@@ -275,6 +345,7 @@ fun SettingsScreen(nav: NavController) {
         )
     }
     InitialFocus(memory, first)
+    com.abidnafi.pocketdeck.ui.AndroidHomePicker(androidHome)
 
     fun closePicker() {
         picker = null

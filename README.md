@@ -10,7 +10,7 @@
 
 PocketDeck is a game launcher for Android phones, handhelds and Android TV. It pulls your ROMs, emulators, installed Android games and the games on your gaming PC into one couch-friendly library with box art, collections and play-time tracking. ROMs go to the right emulator, and PC games stream straight inside PocketDeck.
 
-PocketDeck is a normal app, not a home-screen replacement. You open it like any other app (or from its Quick Settings tile, widget or controller shortcut), and your usual launcher stays as it is.
+PocketDeck is a normal app by default: you open it like any other app (or from its Quick Settings tile, widget or controller shortcut), and your usual launcher stays as it is. If you want a console-style device, you can also make it your **home screen** and switch back to your regular launcher with one press.
 
 ## Features
 
@@ -29,6 +29,7 @@ PocketDeck is a normal app, not a home-screen replacement. You open it like any 
   - a Quick Settings tile
   - an opt-in accessibility shortcut: hold **Select + Start** (View + Menu on Xbox) in any game. It only watches controller buttons and passes them through unchanged.
 - **Home-screen widget** (Glance) that shows last played, recently added, favourites, all games or a collection.
+- **Optional home screen:** turn on **Settings → Home screen → Use as home screen** to make PocketDeck open when you press Home. A button in the top bar (and **Switch to Android home** in the Start menu) opens your regular launcher, and Home brings you back. Off by default.
 - **Extras:** guided onboarding (including PC pairing), UI sounds and haptics, an optional clock, and accent theming.
 
 ## PC streaming
@@ -76,8 +77,32 @@ Download the latest APK from [**Releases**](https://github.com/MohammedAbidNafi/
 Or install it from a computer:
 
 ```bash
-adb install -r PocketDeck-0.2.0.apk
+adb install -r PocketDeck-0.3.0.apk
 ```
+
+## Release notes
+
+Full notes and downloads for every version are on the [Releases page](https://github.com/MohammedAbidNafi/Pocket-Deck/releases).
+
+### 0.3.0
+
+- **Use PocketDeck as your home screen (optional):** turn it on in **Settings → Home screen**, and Android asks you to make PocketDeck the default home app. It's off by default, and turning it off hands Home straight back to your regular launcher.
+- **One press back to Android:** while PocketDeck is your home screen, a button in the top bar and **Switch to Android home** in the Start menu open your regular launcher (you choose which one if you have several). Press Home to come back.
+- **Home behaves like a console:** pressing Home inside PocketDeck jumps back to its Home tab, and Back on the Home tab no longer closes it.
+- **Updated libraries:** Jetpack Compose, AndroidX and other dependencies.
+
+### 0.2.0
+
+- **PC game streaming:** pair a PC running Sunshine with a PIN, and its games appear in your library and stream inside PocketDeck. Video, audio, controller (with rumble and motion), mouse, touch and keyboard all work. Includes automatic discovery, adding a PC by address, Wake-on-LAN, quitting games on the PC, and quality settings (up to 4K/120 FPS, H.264/HEVC/AV1, HDR, surround sound).
+- **Auto collections** that fill themselves: Favourites, Android games, PC games, one per ROM system, Emulators and Not played yet.
+- **Sorting** for the collections list and for the games in the Library and in each collection.
+- **Setup** now offers PC pairing.
+- **Fixes:** the Home screen no longer scrolls past the last row on touch, and the Done button on the last setup page is no longer hidden.
+- PocketDeck is now licensed under the GNU GPL v3, with Moonlight credited in About.
+
+### 0.1.0
+
+- First release: one library for ROMs, emulators and Android games, with box art, collections, play stats, a home-screen widget, a Quick Settings tile and controller-first navigation.
 
 ## Building from source
 
