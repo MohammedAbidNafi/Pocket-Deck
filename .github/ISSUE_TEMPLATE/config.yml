@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/MohammedAbidNafi/Pocket-Deck/security/advisories/new
+    about: Report security problems privately, not as a public issue.
+  - name: Sunshine (PC streaming host) problems
+    url: https://github.com/LizardByte/Sunshine/issues
+    about: Issues with Sunshine itself belong in its own repository.
