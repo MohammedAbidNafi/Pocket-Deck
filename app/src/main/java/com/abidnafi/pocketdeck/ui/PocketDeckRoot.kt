@@ -65,6 +65,7 @@ object Routes {
     const val RETURN_SHORTCUTS = "settings/return"
     const val HOME_ROWS = "settings/home-rows"
     const val STREAMING = "settings/streaming"
+    const val SCAN_PAIR = "settings/streaming/scan"
     const val AUTO_COLLECTION = "auto-collection/{key}"
 
     fun details(id: Long) = "details/$id"
@@ -156,8 +157,29 @@ fun PocketDeckRoot(container: AppContainer, controller: ControllerDispatcher, hi
                     composable(Routes.HOME_ROWS) { com.abidnafi.pocketdeck.ui.settings.HomeRowsScreen(nav) }
                     composable(Routes.RETURN_SHORTCUTS) { com.abidnafi.pocketdeck.ui.settings.ReturnShortcutsScreen(nav) }
                     composable(Routes.STREAMING) { com.abidnafi.pocketdeck.ui.settings.StreamingScreen(nav) }
+                    composable(Routes.SCAN_PAIR) { com.abidnafi.pocketdeck.ui.settings.ScanPairScreen(nav) }
                     composable(Routes.AUTO_COLLECTION) {
                         com.abidnafi.pocketdeck.ui.collections.AutoCollectionDetailScreen(it.arguments?.getString("key").orEmpty(), nav)
+                    }
+                }
+
+                // Pairing progress shows over whatever page started it (scanner, deep link, PC list).
+                val context = LocalContext.current
+                val canScan = remember { com.abidnafi.pocketdeck.ui.settings.canScanPairCode(context) }
+                com.abidnafi.pocketdeck.ui.settings.PairingOverlay(
+                    onScanAgain = if (canScan) ({ nav.navigate(Routes.SCAN_PAIR) { launchSingleTop = true } }) else null,
+                )
+
+                // Opened from a pocketdeck://pair link (e.g. the PC's code scanned with the system camera).
+                LaunchedEffect(Unit) {
+                    container.hosts.pairLink.collect { link ->
+                        if (link == null) return@collect
+                        container.hosts.takePairLink()
+                        when (val r = com.abidnafi.pocketdeck.data.stream.PairCode.parse(link)) {
+                            is com.abidnafi.pocketdeck.data.stream.PairCode.Parsed.Ok -> container.hosts.startPairFromScan(r.code)
+                            is com.abidnafi.pocketdeck.data.stream.PairCode.Parsed.Invalid -> messages.show("Can't pair with that code", r.message)
+                            com.abidnafi.pocketdeck.data.stream.PairCode.Parsed.NotPairCode -> Unit
+                        }
                     }
                 }
 

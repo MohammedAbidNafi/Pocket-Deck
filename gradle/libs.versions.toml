@@ -22,6 +22,8 @@ documentfile = "1.1.0"
 palette = "1.1.0"
 glance = "1.1.1"
 junit = "4.13.2"
+camerax = "1.6.2"
+zxing = "3.5.4"
 
 [libraries]
 androidx-glance-appwidget = { group = "androidx.glance", name = "glance-appwidget", version.ref = "glance" }
@@ -56,6 +58,11 @@ bouncycastle-pkix = { group = "org.bouncycastle", name = "bcpkix-jdk18on", versi
 jcodec = { group = "org.jcodec", name = "jcodec", version.ref = "jcodec" }
 jmdns = { group = "org.jmdns", name = "jmdns", version.ref = "jmdns" }
 shield-controller-extensions = { group = "com.github.cgutman", name = "ShieldControllerExtensions", version.ref = "shieldControllerExtensions" }
+
+androidx-camera-camera2 = { group = "androidx.camera", name = "camera-camera2", version.ref = "camerax" }
+androidx-camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "camerax" }
+androidx-camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "camerax" }
+zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

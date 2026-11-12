@@ -48,6 +48,8 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         isHomeInstance = intent?.hasCategory(android.content.Intent.CATEGORY_HOME) == true
+        // Kept by the app (not this activity), so it survives the hand-over to the home copy below.
+        if (savedInstanceState == null) takePairLink(intent)
         hideSystemBars()
         lifecycleScope.launch {
             container.settings.settings.collect {
@@ -100,6 +102,15 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         // Home pressed while PocketDeck (as the home screen) is already open: back to the Home tab.
         if (intent.hasCategory(android.content.Intent.CATEGORY_HOME)) container.homeMode.onHomePressed()
+        takePairLink(intent)
+    }
+
+    /** Pair with one scan: a pocketdeck://pair link from the system camera or another app. */
+    private fun takePairLink(intent: android.content.Intent?) {
+        val data = intent?.data ?: return
+        if (intent.action == android.content.Intent.ACTION_VIEW && data.scheme == "pocketdeck" && data.host == "pair") {
+            container.hosts.offerPairLink(data.toString())
+        }
     }
 
     override fun onPause() {

@@ -30,8 +30,10 @@ PC streaming (moonlight/ module, see moonlight/UPSTREAM.md for version and local
 App:
 
   AndroidX (Compose, Activity, Core, Lifecycle, Navigation, Room, DataStore, DocumentFile,
-  Palette, Glance), Material Icons, Coil, OkHttp, Okio, Kotlin standard library,
+  Palette, Glance, CameraX), Material Icons, Coil, OkHttp, Okio, Kotlin standard library,
   kotlinx.coroutines, kotlinx.serialization                       Apache-2.0
+  ZXing core (QR code decoding)                                   Apache-2.0   ZXing authors
+      https://github.com/zxing/zxing
 
 The Android robot is reproduced or modified from work created and shared by Google and used
 according to terms described in the Creative Commons 3.0 Attribution License.

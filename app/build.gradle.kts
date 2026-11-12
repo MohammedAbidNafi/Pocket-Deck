@@ -13,8 +13,8 @@ android {
         applicationId = "com.abidnafi.pocketdeck"
         minSdk = 26
         targetSdk = 36
-        versionCode = 3
-        versionName = "0.3.0"
+        versionCode = 4
+        versionName = "0.4.0"
     }
 
     // Release signing key, supplied through environment variables (CI secrets or your shell).
@@ -93,6 +93,11 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.kotlinx.serialization.json)
     implementation(project(":moonlight"))
+    // Pair with one scan: camera preview + QR decoding (pure Java, no Play Services).
+    implementation(libs.androidx.camera.camera2)
+    implementation(libs.androidx.camera.lifecycle)
+    implementation(libs.androidx.camera.view)
+    implementation(libs.zxing.core)
 
     testImplementation(libs.junit)
 }
