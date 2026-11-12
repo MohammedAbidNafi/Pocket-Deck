@@ -26,7 +26,7 @@ jobs:
           distribution: temurin
           java-version: 25
 
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v6
 
       # The streaming engine needs this NDK; installing it up front keeps the Gradle step simple.
       - name: Install NDK and CMake
