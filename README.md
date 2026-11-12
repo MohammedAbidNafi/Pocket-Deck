@@ -77,12 +77,18 @@ Download the latest APK from [**Releases**](https://github.com/MohammedAbidNafi/
 Or install it from a computer:
 
 ```bash
-adb install -r PocketDeck-0.3.0.apk
+adb install -r PocketDeck-0.4.0.apk
 ```
 
 ## Release notes
 
 Full notes and downloads for every version are on the [Releases page](https://github.com/MohammedAbidNafi/Pocket-Deck/releases).
+
+### 0.4.0
+
+- **Pair with your PC in one scan:** in **Settings → PC streaming → Scan PC's code** (or during setup), point the camera at the pairing code PocketDeck on the PC shows, and you're paired. No PIN to type into Sunshine. Scanning the code with your phone's camera app opens PocketDeck straight into pairing too.
+- **Safer pairing:** the code includes the PC's certificate fingerprint, so PocketDeck only pairs with the PC whose screen showed it.
+- The camera is asked for only when the scanner opens. Devices without a camera don't show the scan option, and pairing with a PIN still works as before.
 
 ### 0.3.0
 

@@ -71,6 +71,8 @@ private val Libraries = listOf(
     Library("AndroidX Room", "The Android Open Source Project", APACHE_2, "https://github.com/androidx/androidx"),
     Library("AndroidX DataStore", "The Android Open Source Project", APACHE_2, "https://github.com/androidx/androidx"),
     Library("AndroidX DocumentFile & Palette", "The Android Open Source Project", APACHE_2, "https://github.com/androidx/androidx"),
+    Library("AndroidX CameraX", "The Android Open Source Project", APACHE_2, "https://github.com/androidx/androidx"),
+    Library("ZXing core (QR codes)", "ZXing authors", APACHE_2, "https://github.com/zxing/zxing"),
     Library("Material Icons", "Google", APACHE_2, "https://github.com/google/material-design-icons"),
     Library("Coil", "Coil Contributors", APACHE_2, "https://github.com/coil-kt/coil"),
     Library("OkHttp", "Square, Inc.", APACHE_2, "https://github.com/square/okhttp"),
@@ -215,7 +217,7 @@ fun AboutScreen(nav: NavController) {
         key("apache").let { (r, f) ->
             SettingRow(
                 APACHE_2, { open(APACHE_2_URL) }, icon = Icons.AutoMirrored.Rounded.OpenInNew,
-                subtitle = "Covers the AndroidX, Kotlin, Coil, OkHttp, OpenSSL and JmDNS libraries", focusRequester = r, onFocusChange = f,
+                subtitle = "Covers the AndroidX, Kotlin, Coil, OkHttp, ZXing, OpenSSL and JmDNS libraries", focusRequester = r, onFocusChange = f,
             )
         }
         key("mitbsd").let { (r, f) ->
