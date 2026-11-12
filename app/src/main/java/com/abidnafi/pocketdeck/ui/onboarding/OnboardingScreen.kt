@@ -371,7 +371,8 @@ private fun GamesStep(nav: NavController, onFinish: () -> Unit) {
 
 /**
  * Optional last step: make PocketDeck the home screen. "Make it my home screen" turns the mode on and
- * shows Android's own "default home app" prompt; "Keep it as an app" leaves it off.
+ * shows Android's own "default home app" prompt (setup finishes once PocketDeck is the default);
+ * "Keep it as an app" leaves it off and finishes setup.
  */
 @Composable
 private fun HomeScreenStep(onFinish: () -> Unit) {
@@ -379,30 +380,33 @@ private fun HomeScreenStep(onFinish: () -> Unit) {
     val state = home.state
     val useCard = remember { FocusRequester() }
     val keepCard = remember { FocusRequester() }
-    val done = remember { FocusRequester() }
-    // Once PocketDeck really is the home app, move on to Done.
-    LaunchedEffect(state.isDefault) { if (state.isDefault) done.tryFocus() }
+    // Set when the user picks "Make it my home screen" here, so a device that already uses
+    // PocketDeck as home (re-running setup) doesn't skip this page on its own.
+    var requested by remember { mutableStateOf(false) }
+    // Android's prompt confirmed PocketDeck as the home app: setup is done.
+    LaunchedEffect(state.isDefault, requested) { if (requested && state.isDefault) onFinish() }
 
     Page(
         "Make it your home screen?",
-        "PocketDeck can open whenever you press Home, like a game console. Your regular launcher stays installed: " +
-            "a button in the top bar takes you to it, and you can turn this off any time in Settings → Home screen.",
+        "PocketDeck can open whenever you press Home, like a game console. Your regular launcher stays installed, " +
+            "and a button in the top bar takes you to it.",
     ) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             HomeChoiceCard(
                 icon = Icons.Rounded.Home,
                 title = "Make it my home screen",
                 body = when {
-                    state.isDefault -> "Done: Home now opens PocketDeck"
+                    state.isDefault -> "Home opens PocketDeck"
                     state.available -> "Not the default yet. Select to choose PocketDeck again"
                     else -> "Android will ask you to confirm"
                 },
                 selected = state.available,
                 onClick = {
+                    requested = true
                     when {
                         !state.available -> home.toggle()
                         !state.isDefault -> home.makeDefault()
-                        else -> done.tryFocus()
+                        else -> onFinish()
                     }
                 },
                 focusRequester = useCard,
@@ -422,11 +426,11 @@ private fun HomeScreenStep(onFinish: () -> Unit) {
             )
         }
         Spacer(Modifier.height(18.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            ConsoleButton("Done", onFinish, icon = Icons.Rounded.Check, primary = true, focusRequester = done)
-            Spacer(Modifier.width(18.dp))
-            Text(home.subtitle, style = MaterialTheme.typography.titleMedium, color = Palette.TextDim)
-        }
+        Text(
+            "You can change this later in Settings → Home screen.",
+            style = MaterialTheme.typography.bodyLarge,
+            color = Palette.TextDim,
+        )
     }
     InitialFocus(null, if (state.available) useCard else keepCard)
 }
