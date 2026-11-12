@@ -1,0 +1,104 @@
+name: Release
+
+# Publishes a GitHub Release whenever versionName in app/build.gradle.kts changes on main:
+# if tag v<versionName> doesn't exist yet, build the release APK, tag the commit and attach the APK.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Release on version change
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read version
+        id: version
+        run: |
+          version=$(sed -n 's/.*versionName = "\([^"]*\)".*/\1/p' app/build.gradle.kts | head -1)
+          code=$(sed -n 's/.*versionCode = \([0-9]*\).*/\1/p' app/build.gradle.kts | head -1)
+          if [ -z "$version" ]; then echo "::error::versionName not found in app/build.gradle.kts"; exit 1; fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          if git rev-parse -q --verify "refs/tags/v$version" > /dev/null; then
+            echo "Tag v$version already exists; nothing to release."
+            echo "new=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "New version $version (code $code); releasing."
+            echo "new=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-java@v4
+        if: steps.version.outputs.new == 'true'
+        with:
+          distribution: temurin
+          java-version: 25
+
+      - uses: gradle/actions/setup-gradle@v4
+        if: steps.version.outputs.new == 'true'
+
+      - name: Install NDK and CMake
+        if: steps.version.outputs.new == 'true'
+        run: |
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;29.0.14206865" "cmake;3.22.1" > /dev/null
+
+      # Optional: sign with your release key. Add these repository secrets to enable it:
+      # RELEASE_KEYSTORE_BASE64, RELEASE_KEYSTORE_PASSWORD, RELEASE_KEY_ALIAS, RELEASE_KEY_PASSWORD.
+      - name: Set up release signing
+        id: signing
+        if: steps.version.outputs.new == 'true'
+        env:
+          KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+            echo "POCKETDECK_KEYSTORE_FILE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+            echo "signed=release" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::No RELEASE_KEYSTORE_BASE64 secret; the APK is signed with a temporary debug key."
+            echo "signed=debug" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build release APK
+        if: steps.version.outputs.new == 'true'
+        env:
+          POCKETDECK_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          POCKETDECK_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          POCKETDECK_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          ./gradlew --no-daemon assembleRelease testDebugUnitTest
+          cp app/build/outputs/apk/release/app-release.apk "PocketDeck-${{ steps.version.outputs.version }}.apk"
+
+      - name: Publish release
+        if: steps.version.outputs.new == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+          SIGNED: ${{ steps.signing.outputs.signed }}
+        run: |
+          notes="$RUNNER_TEMP/notes.md"
+          {
+            echo "Install by downloading \`PocketDeck-$VERSION.apk\` below and opening it on your device (allow installs from unknown sources)."
+            echo
+            if [ "$SIGNED" = "debug" ]; then
+              echo "> **Note:** this build is signed with a temporary debug key, so it can't be installed over an earlier version. Uninstall the old one first."
+              echo
+            fi
+          } > "$notes"
+          gh release create "v$VERSION" "PocketDeck-$VERSION.apk" \
+            --target "$GITHUB_SHA" \
+            --title "PocketDeck $VERSION" \
+            --notes-file "$notes" \
+            --generate-notes

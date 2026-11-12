@@ -17,13 +17,26 @@ android {
         versionName = "0.2.0"
     }
 
+    // Release signing key, supplied through environment variables (CI secrets or your shell).
+    // Without them, release builds fall back to the debug key so they can still be side-loaded.
+    val releaseKeystore = System.getenv("POCKETDECK_KEYSTORE_FILE")?.let(::file)?.takeIf { it.exists() }
+    signingConfigs {
+        if (releaseKeystore != null) {
+            create("release") {
+                storeFile = releaseKeystore
+                storePassword = System.getenv("POCKETDECK_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("POCKETDECK_KEY_ALIAS")
+                keyPassword = System.getenv("POCKETDECK_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            // Signed with the debug key so a release APK can be side-loaded for testing.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName(if (releaseKeystore != null) "release" else "debug")
         }
     }
 
