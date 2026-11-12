@@ -41,9 +41,13 @@ class MainActivity : ComponentActivity() {
     /** Mirrors the "swap A/B" setting so key handling stays synchronous. */
     @Volatile private var swapAB = false
 
+    /** Started by Android as the home screen (via the HomeEntry alias), not as a normal app. */
+    private var isHomeInstance = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        isHomeInstance = intent?.hasCategory(android.content.Intent.CATEGORY_HOME) == true
         hideSystemBars()
         lifecycleScope.launch {
             container.settings.settings.collect {
@@ -71,6 +75,18 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        container.homeMode.refresh()
+        // When PocketDeck becomes the home app, Android starts a separate home copy of it. Hand this
+        // ordinary copy over to that one so there's only ever one PocketDeck (setup resumes there).
+        if (!isHomeInstance && container.homeMode.state.value.isDefault) {
+            startActivity(
+                android.content.Intent(android.content.Intent.ACTION_MAIN)
+                    .addCategory(android.content.Intent.CATEGORY_HOME)
+                    .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
+            )
+            finishAndRemoveTask()
+            return
+        }
         hideSystemBars()
         lifecycleScope.launch {
             container.launcher.onReturnedToApp()
@@ -78,6 +94,12 @@ class MainActivity : ComponentActivity() {
         }
         // Gaming PCs: who's online, and pick up games added on the PC. Best effort, in the background.
         container.hosts.refreshAll()
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        // Home pressed while PocketDeck (as the home screen) is already open: back to the Home tab.
+        if (intent.hasCategory(android.content.Intent.CATEGORY_HOME)) container.homeMode.onHomePressed()
     }
 
     override fun onPause() {

@@ -44,6 +44,8 @@ class AppContainer(context: Context) {
     val returnNotifier = com.abidnafi.pocketdeck.data.ReturnNotifier(appContext)
     /** Gaming PCs for streaming (Sunshine hosts). */
     val hosts = com.abidnafi.pocketdeck.data.stream.HostRepository(appContext, db, appScope)
+    /** Optional "PocketDeck as home screen" mode. */
+    val homeMode = com.abidnafi.pocketdeck.data.HomeMode(appContext)
     val launcher = GameLauncher(db.games(), db.sessions(), settings, installedApps, emulators, platforms, returnNotifier, hosts)
 
     private fun asset(name: String): String =
