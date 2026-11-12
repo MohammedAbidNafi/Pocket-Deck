@@ -71,10 +71,12 @@ Launch templates live in [`app/src/main/assets/emulators.json`](app/src/main/ass
 
 ## Install
 
-A prebuilt, side-loadable APK is in [`release/PocketDeck-0.2.0.apk`](release/PocketDeck-0.2.0.apk). It's about 25 MB, mostly the streaming engine for arm64-v8a, armeabi-v7a and x86_64. It is signed with the debug key, so it is meant for testing.
+Download the latest APK from [**Releases**](https://github.com/MohammedAbidNafi/Pocket-Deck/releases/latest) and open it on your device (allow installs from unknown sources). It's about 25 MB, mostly the streaming engine for arm64-v8a, armeabi-v7a and x86_64. A new release is published automatically whenever the version number changes on `main`.
+
+Or install it from a computer:
 
 ```bash
-adb install -r release/PocketDeck-0.2.0.apk
+adb install -r PocketDeck-0.2.0.apk
 ```
 
 ## Building from source
