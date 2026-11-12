@@ -36,6 +36,7 @@ fun formatLastPlayed(time: Long?, now: Long = System.currentTimeMillis()): Strin
 fun sourceLabel(game: GameEntity, platformName: String?): String = when (game.type) {
     GameType.ROM -> platformName ?: "ROM"
     GameType.EMULATOR -> "Emulator"
+    GameType.STREAM -> platformName?.let { "PC · $it" } ?: "PC"
     GameType.APP -> when (game.source) {
         GameSource.PLAY_STORE -> "Android · Play Store"
         GameSource.SIDELOADED -> "Android · Installed app"

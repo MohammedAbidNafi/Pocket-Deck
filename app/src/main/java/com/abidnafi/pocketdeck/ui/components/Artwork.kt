@@ -68,10 +68,56 @@ fun GameArt(game: GameEntity, style: ArtStyle, modifier: Modifier = Modifier) {
                 modifier = Modifier.fillMaxSize(),
             )
             game.type == GameType.ROM -> RomArt(game, style)
+            game.type == GameType.STREAM -> StreamArt(game, style)
             else -> AppArt(game, style)
         }
     }
 }
+
+/** Box art downloaded from the PC (Sunshine serves 3:4 covers), generated card until then. */
+@Composable
+private fun StreamArt(game: GameEntity, style: ArtStyle) {
+    var loaded by remember(game.hostArt) { mutableStateOf(false) }
+    Box(Modifier.fillMaxSize()) {
+        if (!loaded) FallbackArt(game.title, PcPlatform, style)
+        val path = game.hostArt ?: return@Box
+        if (style == ArtStyle.COVER || style == ArtStyle.FILL) {
+            AsyncImage(
+                model = File(path),
+                contentDescription = game.title,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+                onSuccess = { loaded = true },
+            )
+        } else {
+            // Wide / backdrop: blurred cover fills the card, crisp cover sits in the middle.
+            if (Build.VERSION.SDK_INT >= 31) {
+                AsyncImage(
+                    File(path), null,
+                    Modifier.fillMaxSize().blur(if (style == ArtStyle.BACKDROP) 60.dp else 24.dp)
+                        .alpha(if (style == ArtStyle.BACKDROP) 0.35f else 0.6f),
+                    contentScale = ContentScale.Crop,
+                )
+            }
+            if (style == ArtStyle.WIDE) {
+                AsyncImage(
+                    model = File(path),
+                    contentDescription = game.title,
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier.fillMaxSize().padding(6.dp),
+                    onSuccess = { loaded = true },
+                )
+            } else {
+                loaded = true
+            }
+        }
+    }
+}
+
+/** Chip and colour for PC games' generated artwork; not a ROM system. */
+private val PcPlatform = Platform(
+    id = "pc", name = "PC", shortName = "PC", color = "#3B4B63", extensions = emptyList(), libretro = "",
+)
 
 @Composable
 fun rememberAppVisual(pkg: String?): AppVisual? {

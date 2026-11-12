@@ -6,17 +6,18 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
-enum class GameType { APP, ROM, EMULATOR }
+/** [STREAM]: a game on a paired PC, played by streaming it from that host (Sunshine / GameStream). */
+enum class GameType { APP, ROM, EMULATOR, STREAM }
 
-enum class GameSource { PLAY_STORE, SIDELOADED, MANUAL, ROM_SCAN }
+enum class GameSource { PLAY_STORE, SIDELOADED, MANUAL, ROM_SCAN, PC_HOST }
 
 @Entity(
     tableName = "games",
-    indices = [Index(value = ["key"], unique = true), Index("folderId"), Index("packageName")],
+    indices = [Index(value = ["key"], unique = true), Index("folderId"), Index("packageName"), Index("hostId")],
 )
 data class GameEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    /** Stable identity: `app:<pkg>`, `emu:<pkg>` or `rom:<document uri>`. */
+    /** Stable identity: `app:<pkg>`, `emu:<pkg>`, `rom:<document uri>` or `pc:<host uuid>:<app id>`. */
     val key: String,
     val type: GameType,
     val title: String,
@@ -38,11 +39,50 @@ data class GameEntity(
     val lastPlayedAt: Long? = null,
     val playCount: Int = 0,
     val playTimeMs: Long = 0,
+    /** STREAM only: the [StreamHostEntity] this game lives on. */
+    val hostId: Long? = null,
+    /** STREAM only: the host's id for the app. */
+    val streamAppId: Int? = null,
+    /** STREAM only: box art downloaded from the host. */
+    val hostArt: String? = null,
 ) {
     companion object {
         fun appKey(pkg: String) = "app:$pkg"
         fun emulatorKey(pkg: String) = "emu:$pkg"
         fun romKey(uri: String) = "rom:$uri"
+        fun streamKey(hostUuid: String, appId: Int) = "pc:$hostUuid:$appId"
+    }
+}
+
+/**
+ * A gaming PC running Sunshine (or another GameStream host). Addresses are host names or IPs
+ * without the port; [httpPort] applies to all of them.
+ */
+@Entity(tableName = "stream_hosts", indices = [Index(value = ["uuid"], unique = true)])
+data class StreamHostEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val uuid: String,
+    val name: String,
+    /** Found by mDNS on the local network. */
+    val localAddress: String? = null,
+    /** Typed in by the user. Tried first. */
+    val manualAddress: String? = null,
+    /** Public address reported by the host, for streaming away from home. */
+    val remoteAddress: String? = null,
+    val httpPort: Int = DEFAULT_HTTP_PORT,
+    val macAddress: String? = null,
+    /** Base64 DER of the certificate pinned when pairing; null = not paired. */
+    val serverCert: String? = null,
+    val addedAt: Long,
+    val lastSeenAt: Long? = null,
+) {
+    val paired: Boolean get() = serverCert != null
+
+    /** Addresses in the order they should be tried. */
+    val addresses: List<String> get() = listOfNotNull(manualAddress, localAddress, remoteAddress).distinct()
+
+    companion object {
+        const val DEFAULT_HTTP_PORT = 47989
     }
 }
 

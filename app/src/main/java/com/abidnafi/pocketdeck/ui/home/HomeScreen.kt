@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -142,14 +144,23 @@ fun HomeScreen(nav: NavController, topInset: Dp) {
             Spacer(Modifier.height(topInset))
             HeroInfo(hero, compact, Modifier.padding(horizontal = ScreenPadding))
             // Keep the focused shelf at the top of the list, with its title visible.
-            val pivot = with(LocalDensity.current) { 52.dp.toPx() }
+            val density = LocalDensity.current
+            val pivot = with(density) { 52.dp.toPx() }
+            // Blank space under the last shelf: exactly enough for the controller to pivot it to
+            // the top, so a touch fling can't run on into empty space.
+            var lastShelfPx by remember { mutableIntStateOf(0) }
+            androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth().weight(1f)) {
+                val bottomSpace = with(density) {
+                    if (lastShelfPx == 0) 0.dp else (constraints.maxHeight - pivot - lastShelfPx).coerceAtLeast(0f).toDp()
+                }
             CompositionLocalProvider(LocalBringIntoViewSpec provides remember(pivot) { PivotBringIntoViewSpec(pivot) }) {
                 LazyColumn(
                     state = rememberLazyListState(),
-                    modifier = Modifier.fillMaxWidth().weight(1f),
-                    contentPadding = PaddingValues(bottom = screenHeight * 0.6f),
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = bottomSpace),
                 ) {
                     items(shelves, key = { it.id }) { shelf ->
+                        val isLast = shelf.id == shelves.last().id
                         Shelf(
                             title = shelf.title,
                             games = shelf.games,
@@ -161,10 +172,13 @@ fun HomeScreen(nav: NavController, topInset: Dp) {
                             onFocused = { focusedId = it.id },
                             onMenu = { menu.open(it) },
                             trailing = "${shelf.games.size}".takeIf { shelf.games.size > 6 },
-                            modifier = Modifier.padding(top = 6.dp),
+                            modifier = Modifier
+                                .padding(top = 6.dp)
+                                .then(if (isLast) Modifier.onSizeChanged { lastShelfPx = it.height } else Modifier),
                         )
                     }
                 }
+            }
             }
         }
         val first = shelves.first()

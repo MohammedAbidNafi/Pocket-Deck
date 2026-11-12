@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    PC streaming: the GameStream protocol talks plain HTTP (port 47989) to a host's LAN IP for
+    serverinfo and pairing; everything after pairing uses HTTPS with the pinned certificate.
+    Host IPs can't be listed in advance, so cleartext is allowed, as in upstream Moonlight.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

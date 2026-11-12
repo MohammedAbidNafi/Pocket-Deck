@@ -127,11 +127,14 @@ fun GameDetailsScreen(gameId: Long, nav: NavController) {
     val g = game ?: return
 
     val platform = container.platforms[g.platformId]
+    val hosts by container.hosts.hosts.collectAsState(emptyList())
+    // PC games show their host's name where ROMs show their system.
+    val placeName = if (g.type == GameType.STREAM) hosts.firstOrNull { it.id == g.hostId }?.name else platform?.name
     val emulatorName by produceState<String?>(null, g.emulatorOverride, g.platformId) {
         value = container.launcher.resolveEmulator(g)?.name
     }
     val about by produceState<List<Pair<String, String>>>(emptyList(), g, emulatorName, memberOf, collections) {
-        value = aboutRows(context, g, platform?.name, emulatorName, collections.filter { it.collection.id in memberOf }.map { it.collection.name })
+        value = aboutRows(context, g, placeName, emulatorName, collections.filter { it.collection.id in memberOf }.map { it.collection.name })
     }
     val stats = remember(g, sessions, allGames) { computeStats(g, sessions, allGames) }
 
@@ -173,7 +176,7 @@ fun GameDetailsScreen(gameId: Long, nav: NavController) {
                     Spacer(Modifier.width(36.dp))
                     Column(Modifier.weight(1f)) {
                         Text(
-                            sourceLabel(g, platform?.name).uppercase(),
+                            sourceLabel(g, placeName).uppercase(),
                             style = MaterialTheme.typography.labelMedium,
                             color = Color.White,
                             modifier = Modifier
@@ -249,7 +252,7 @@ fun GameDetailsScreen(gameId: Long, nav: NavController) {
                 }
 
                 // --- About ---
-                Section(if (g.type == GameType.ROM) "About this ROM" else "About this app") {
+                Section(when (g.type) { GameType.ROM -> "About this ROM"; GameType.STREAM -> "About this PC game"; else -> "About this app" }) {
                     about.forEach { (label, value) -> InfoRow(label, value) }
                 }
             }
@@ -465,6 +468,10 @@ private suspend fun aboutRows(
                     runCatching { DocumentFile.fromSingleUri(context, Uri.parse(uri))?.length() }.getOrNull()
                         ?.takeIf { it > 0 }?.let { add("File size" to Formatter.formatShortFileSize(context, it)) }
                 }
+            }
+            GameType.STREAM -> {
+                platformName?.let { add("PC" to it) }
+                add("Streams with" to "Moonlight engine · GameStream protocol")
             }
             else -> game.packageName?.let { pkg ->
                 add("Package" to pkg)

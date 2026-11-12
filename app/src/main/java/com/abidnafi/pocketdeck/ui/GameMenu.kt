@@ -10,12 +10,15 @@ import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.PowerSettingsNew
 import androidx.compose.material.icons.rounded.SportsEsports
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.StarOutline
+import androidx.compose.material.icons.rounded.StopCircle
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -71,6 +74,15 @@ fun GameMenuHost(
     val collections by library.collections.collectAsState(emptyList())
     val memberOf by remember(id) { id?.let(library::collectionsFor) ?: flowOf(emptyList()) }.collectAsState(emptyList())
     val settings = LocalSettings.current
+    val messages = LocalMessages.current
+    val hostList by container.hosts.hosts.collectAsState(emptyList())
+    val hostsById = remember(hostList) { hostList.associateBy { it.id } }
+    val hostStatus by container.hosts.status.collectAsState()
+    // PC games: check the host is on and what it's running, for the Wake / Quit items.
+    LaunchedEffect(game?.hostId) {
+        val host = game?.hostId?.let { container.hosts.host(it) } ?: return@LaunchedEffect
+        container.hosts.refresh(host)
+    }
 
     val pickImage = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         val g = game
@@ -120,6 +132,22 @@ fun GameMenuHost(
                 if (g.hidden) Icons.Rounded.Visibility else Icons.Rounded.VisibilityOff,
             ) { scope.launch { library.setHidden(g.id, !g.hidden) }; close() },
         )
+        if (g.type == GameType.STREAM) {
+            val host = g.hostId?.let { hostsById[it] }
+            val st = g.hostId?.let { hostStatus[it] }
+            if (host != null && st?.online != true && host.macAddress != null) {
+                add(MenuItem("Wake ${host.name}", Icons.Rounded.PowerSettingsNew, subtitle = "Send a Wake-on-LAN signal") {
+                    scope.launch { container.hosts.wake(host)?.let { messages.show("Couldn't wake ${host.name}", it) } }
+                    close()
+                })
+            }
+            if (host != null && st?.online == true && st.runningAppId != 0) {
+                add(MenuItem("Quit game on ${host.name}", Icons.Rounded.StopCircle, danger = true) {
+                    scope.launch { container.hosts.quitApp(host) }
+                    close()
+                })
+            }
+        }
         if (!g.autoDetected && g.type != GameType.ROM) {
             add(MenuItem("Remove from library", Icons.Rounded.DeleteOutline, danger = true) { scope.launch { library.remove(g) }; close() })
         }

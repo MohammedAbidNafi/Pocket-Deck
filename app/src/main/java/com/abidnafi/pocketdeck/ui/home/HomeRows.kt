@@ -12,7 +12,7 @@ data class ShelfModel(val id: String, val title: String, val games: List<GameEnt
 
 /**
  * Every possible home row in its default order: Continue playing, Recently added, Favourites,
- * one row per collection, Android games, one row per system, Emulators. Empty rows are left out.
+ * one row per collection, Android games, PC games, one row per system, Emulators. Empty rows are left out.
  */
 fun allHomeRows(
     games: List<GameEntity>,
@@ -38,6 +38,8 @@ fun allHomeRows(
 
     val apps = visible.filter { it.type == GameType.APP }
     if (apps.isNotEmpty()) add(ShelfModel("android", "Android games", apps, ArtStyle.COVER, "Android"))
+    val pcGames = visible.filter { it.type == GameType.STREAM }
+    if (pcGames.isNotEmpty()) add(ShelfModel("pc", "PC games", pcGames, ArtStyle.COVER, "Streamed from your PC"))
     val roms = visible.filter { it.type == GameType.ROM }.groupBy { it.platformId }
     for ((id, name) in platformOrder) {
         val list = roms[id] ?: continue

@@ -59,20 +59,10 @@ import com.abidnafi.pocketdeck.ui.components.rememberTileMetrics
 import com.abidnafi.pocketdeck.ui.rememberGameMenu
 import com.abidnafi.pocketdeck.ui.rememberGameStarter
 import com.abidnafi.pocketdeck.ui.theme.Palette
+import com.abidnafi.pocketdeck.data.GameSort
 import kotlinx.coroutines.launch
 
 private data class LibraryFilter(val id: String, val label: String, val matches: (GameEntity) -> Boolean)
-
-private enum class Sort(val label: String) {
-    NAME("A–Z"), RECENT("Recently played"), PLAYTIME("Most played"), ADDED("Recently added");
-
-    fun apply(list: List<GameEntity>): List<GameEntity> = when (this) {
-        NAME -> list.sortedBy { it.sortTitle }
-        RECENT -> list.sortedByDescending { it.lastPlayedAt ?: 0L }
-        PLAYTIME -> list.sortedByDescending { it.playTimeMs }
-        ADDED -> list.sortedByDescending { it.addedAt }
-    }
-}
 
 /** Everything in one grid with platform / source filters. L2/R2 cycle filters, Select-chip changes sort. */
 @OptIn(ExperimentalFoundationApi::class)
@@ -93,6 +83,7 @@ fun LibraryScreen(nav: NavController, topInset: Dp) {
             add(LibraryFilter("all", "All") { !it.hidden })
             if (visible.any { it.favorite }) add(LibraryFilter("fav", "Favourites") { !it.hidden && it.favorite })
             if (visible.any { it.type == GameType.APP }) add(LibraryFilter("android", "Android") { !it.hidden && it.type == GameType.APP })
+            if (visible.any { it.type == GameType.STREAM }) add(LibraryFilter("pc", "PC") { !it.hidden && it.type == GameType.STREAM })
             container.platforms.platforms.forEach { p ->
                 if (visible.any { it.platformId == p.id }) add(LibraryFilter(p.id, p.shortName) { !it.hidden && it.platformId == p.id })
             }
@@ -101,7 +92,7 @@ fun LibraryScreen(nav: NavController, topInset: Dp) {
         }
     }
     var filterId by rememberSaveable { mutableStateOf("all") }
-    var sort by rememberSaveable { mutableStateOf(Sort.NAME) }
+    var sort by rememberSaveable { mutableStateOf(GameSort.NAME) }
     val filter = filters.firstOrNull { it.id == filterId } ?: filters.first()
     val shown = remember(games, filter, sort) { sort.apply(games.filter(filter.matches)) }
     var focusedId by remember { mutableStateOf<Long?>(null) }
@@ -148,7 +139,7 @@ fun LibraryScreen(nav: NavController, topInset: Dp) {
                     }
                     item(key = "sort") {
                         FilterChip(label = "Sort: ${sort.label}", selected = false, onClick = {
-                            sort = Sort.entries[(sort.ordinal + 1) % Sort.entries.size]
+                            sort = sort.next()
                         })
                     }
                 }

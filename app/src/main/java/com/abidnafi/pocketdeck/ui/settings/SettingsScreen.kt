@@ -18,6 +18,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardReturn
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.Apps
+import androidx.compose.material.icons.rounded.Computer
+import androidx.compose.material.icons.rounded.CollectionsBookmark
+import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.CleaningServices
 import androidx.compose.material.icons.rounded.Folder
@@ -159,9 +162,31 @@ fun SettingsScreen(nav: NavController) {
             "Detect installed games", { set { repo.setAutoDetect(!settings.autoDetectGames) } }, icon = Icons.Rounded.AutoAwesome,
             subtitle = "Add apps Android marks as games automatically", toggle = settings.autoDetectGames,
         )
+        SettingRow(
+            "Auto collections", { set { repo.setAutoCollections(!settings.autoCollections) } }, icon = Icons.Rounded.CollectionsBookmark,
+            subtitle = "Collections that fill themselves: Android, PC, each system, favourites, not played yet",
+            toggle = settings.autoCollections,
+        )
+        if (settings.autoCollections && settings.hiddenAutoCollections.isNotEmpty()) {
+            SettingRow(
+                "Show hidden auto collections", { set { repo.showAllAutoCollections() } }, icon = Icons.Rounded.Visibility,
+                value = "${settings.hiddenAutoCollections.size} hidden",
+            )
+        }
 
         SectionHeader("Emulators")
         SettingRow("Emulators", { nav.navigate(Routes.EMULATORS) }, icon = Icons.Rounded.SportsEsports, subtitle = "Default emulator per system, custom launch settings")
+
+        SectionHeader("PC streaming")
+        val pcHosts by container.hosts.hosts.collectAsState(emptyList())
+        SettingRow(
+            "Gaming PCs", { nav.navigate(Routes.STREAMING) }, icon = Icons.Rounded.Computer,
+            value = when (val paired = pcHosts.count { it.paired }) {
+                0 -> if (pcHosts.isEmpty()) "None" else "Not paired"
+                else -> "$paired paired"
+            },
+            subtitle = "Stream games from a PC running Sunshine, plus stream quality",
+        )
 
         SectionHeader("Controller")
         SettingRow(

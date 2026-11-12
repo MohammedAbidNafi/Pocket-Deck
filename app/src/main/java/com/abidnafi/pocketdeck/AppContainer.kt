@@ -42,7 +42,9 @@ class AppContainer(context: Context) {
         scope = appScope,
     )
     val returnNotifier = com.abidnafi.pocketdeck.data.ReturnNotifier(appContext)
-    val launcher = GameLauncher(db.games(), db.sessions(), settings, installedApps, emulators, platforms, returnNotifier)
+    /** Gaming PCs for streaming (Sunshine hosts). */
+    val hosts = com.abidnafi.pocketdeck.data.stream.HostRepository(appContext, db, appScope)
+    val launcher = GameLauncher(db.games(), db.sessions(), settings, installedApps, emulators, platforms, returnNotifier, hosts)
 
     private fun asset(name: String): String =
         appContext.assets.open(name).bufferedReader().use { it.readText() }

@@ -17,6 +17,8 @@ import com.abidnafi.pocketdeck.data.emulators.SpecResult
 import com.abidnafi.pocketdeck.data.model.EmulatorDef
 import com.abidnafi.pocketdeck.data.model.PlatformRegistry
 import com.abidnafi.pocketdeck.data.apps.InstalledApps
+import com.abidnafi.pocketdeck.data.stream.HostRepository
+import com.abidnafi.pocketdeck.stream.StreamActivity
 
 sealed interface LaunchResult {
     data object Ok : LaunchResult
@@ -32,6 +34,7 @@ class GameLauncher(
     private val emulators: EmulatorRegistry,
     private val platforms: PlatformRegistry,
     private val notifier: ReturnNotifier,
+    private val hosts: HostRepository,
 ) {
     /**
      * [trackSession]: time the session until the user comes back to PocketDeck. Off for launches
@@ -41,17 +44,35 @@ class GameLauncher(
         val result = when (game.type) {
             GameType.APP, GameType.EMULATOR -> launchPackage(activity, game)
             GameType.ROM -> launchRom(activity, game)
+            GameType.STREAM -> launchStream(activity, game)
         }
         if (result == LaunchResult.Ok) {
             val now = System.currentTimeMillis()
             games.markLaunched(game.id, now)
+            // Streams play inside PocketDeck, so they're always timed until the stream screen closes.
+            val timed = trackSession || game.type == GameType.STREAM
             sessions.insert(PlaySessionEntity(gameId = game.id, startedAt = now, from = if (trackSession) "app" else "widget"))
-            if (trackSession) {
+            if (timed) {
                 settings.setPendingSession(game.id, now)
-                if (settings.current().returnNotification) notifier.show(game.title)
+                if (game.type != GameType.STREAM && settings.current().returnNotification) notifier.show(game.title)
             }
         }
         return result
+    }
+
+    private suspend fun launchStream(activity: Activity, game: GameEntity): LaunchResult {
+        val host = game.hostId?.let { hosts.host(it) }
+            ?: return LaunchResult.Error("PC not found", "The PC this game was on has been removed. Add it again in Settings → PC streaming.")
+        if (game.streamAppId == null) return LaunchResult.Error("Can't stream", "This entry has no app on ${host.name}.")
+        if (!host.paired) {
+            return LaunchResult.Error("Not paired with ${host.name}", "Pair with it first in Settings → PC streaming.")
+        }
+        hosts.target(host) ?: return LaunchResult.Error(
+            "${host.name} is offline",
+            "Turn the PC on and make sure Sunshine is running." +
+                if (host.macAddress != null) " You can also wake it from the game's menu or Settings → PC streaming." else "",
+        )
+        return start(activity, StreamActivity.intent(activity, game.id), game.title)
     }
 
     suspend fun gameById(id: Long): GameEntity? = games.get(id)

@@ -173,6 +173,9 @@ private suspend fun artFor(context: Context, container: AppContainer, game: Game
     game.customArt?.let { path ->
         return runCatching { android.graphics.BitmapFactory.decodeFile(path) }.getOrNull()
     }
+    if (game.type == GameType.STREAM) {
+        return game.hostArt?.let { path -> runCatching { android.graphics.BitmapFactory.decodeFile(path) }.getOrNull() }
+    }
     if (game.type != GameType.ROM) {
         val visual = game.packageName?.let { container.icons.load(it) } ?: return null
         return (visual.fullBleed ?: visual.icon).asAndroidBitmap()

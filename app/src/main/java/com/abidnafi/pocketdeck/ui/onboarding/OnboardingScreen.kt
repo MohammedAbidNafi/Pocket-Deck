@@ -41,6 +41,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.rounded.Android
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Computer
 import androidx.compose.material.icons.rounded.CreateNewFolder
 import androidx.compose.material.icons.rounded.Gamepad
 import androidx.compose.material.icons.rounded.SportsEsports
@@ -151,19 +152,28 @@ fun OnboardingScreen(nav: NavController) {
     }
 }
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 private fun Page(title: String, body: String, content: @Composable ColumnScope.() -> Unit) {
-    Column(
-        Modifier
-            .widthIn(max = 760.dp)
-            .verticalScroll(rememberScrollState())
-            .padding(start = ScreenPadding, end = ScreenPadding, top = 44.dp, bottom = 64.dp),
+    // Scroll a focused row / button well clear of the screen edge and the hint bar, not just to it.
+    val margin = with(androidx.compose.ui.platform.LocalDensity.current) { 72.dp.toPx() }
+    androidx.compose.runtime.CompositionLocalProvider(
+        androidx.compose.foundation.gestures.LocalBringIntoViewSpec provides remember(margin) {
+            com.abidnafi.pocketdeck.ui.components.MarginBringIntoViewSpec(margin)
+        },
     ) {
-        Text(title, style = MaterialTheme.typography.displaySmall, color = Palette.Text)
-        Spacer(Modifier.height(6.dp))
-        Text(body, style = MaterialTheme.typography.bodyLarge, color = Palette.TextDim)
-        Spacer(Modifier.height(22.dp))
-        content()
+        Column(
+            Modifier
+                .widthIn(max = 760.dp)
+                .verticalScroll(rememberScrollState())
+                .padding(start = ScreenPadding, end = ScreenPadding, top = 44.dp, bottom = 72.dp),
+        ) {
+            Text(title, style = MaterialTheme.typography.displaySmall, color = Palette.Text)
+            Spacer(Modifier.height(6.dp))
+            Text(body, style = MaterialTheme.typography.bodyLarge, color = Palette.TextDim)
+            Spacer(Modifier.height(22.dp))
+            content()
+        }
     }
 }
 
@@ -316,8 +326,10 @@ private fun ControllerCard(
 
 @Composable
 private fun GamesStep(nav: NavController, onFinish: () -> Unit) {
-    val library = LocalAppContainer.current.library
+    val container = LocalAppContainer.current
+    val library = container.library
     val folders by library.folders.collectAsState(emptyList())
+    val hosts by container.hosts.hosts.collectAsState(emptyList())
     val games by library.games.collectAsState(emptyList())
     val scan by library.scanState.collectAsState()
     val scope = rememberCoroutineScope()
@@ -326,7 +338,7 @@ private fun GamesStep(nav: NavController, onFinish: () -> Unit) {
     Page(
         "Add your games",
         "Installed Android games are found automatically. Add a folder of ROMs to bring in your emulated games — " +
-            "sub-folders named after systems (snes, gba, psx…) are sorted for you.",
+            "sub-folders named after systems (snes, gba, psx…) are sorted for you. Have a gaming PC? Pair it to stream its games.",
     ) {
         SettingRow(
             "Add ROM folder", pick, icon = Icons.Rounded.CreateNewFolder, focusRequester = first,
@@ -335,6 +347,13 @@ private fun GamesStep(nav: NavController, onFinish: () -> Unit) {
         )
         Spacer(Modifier.height(6.dp))
         SettingRow("Pick other apps", { nav.navigate(Routes.ADD_APP) }, icon = Icons.Rounded.Android, subtitle = "Sideloaded games, streaming apps…")
+        Spacer(Modifier.height(6.dp))
+        val paired = hosts.filter { it.paired }
+        SettingRow(
+            "Stream from your PC", { nav.navigate(Routes.STREAMING) }, icon = Icons.Rounded.Computer,
+            value = if (paired.isEmpty()) null else "${paired.size} paired",
+            subtitle = paired.joinToString { it.name }.ifEmpty { "Pair a PC running Sunshine and play its games here" },
+        )
         Spacer(Modifier.height(16.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             ConsoleButton("Done", onFinish, icon = Icons.Rounded.Check, primary = true)

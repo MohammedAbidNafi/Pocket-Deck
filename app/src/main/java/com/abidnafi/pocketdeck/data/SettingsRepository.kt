@@ -25,6 +25,52 @@ enum class TileSize { SMALL, MEDIUM, LARGE }
 /** Shape of game tiles: circles, squares, or the classic rectangles (wide / box-art). */
 enum class TileShape { ROUND, SQUARE, RECTANGLE }
 
+/** Stream resolution; [NATIVE] uses the device's own screen size. */
+enum class StreamResolution(val label: String, val width: Int, val height: Int) {
+    P720("720p", 1280, 720),
+    P1080("1080p", 1920, 1080),
+    P1440("1440p", 2560, 1440),
+    P2160("4K", 3840, 2160),
+    NATIVE("Native", 0, 0),
+}
+
+enum class StreamCodec(val label: String) { AUTO("Automatic"), H264("H.264"), HEVC("HEVC (H.265)"), AV1("AV1") }
+
+enum class StreamAudio(val label: String) { STEREO("Stereo"), SURROUND_51("5.1 surround"), SURROUND_71("7.1 surround") }
+
+enum class FramePacing(val label: String) {
+    LATENCY("Lowest latency"),
+    BALANCED("Balanced"),
+    CAP_FPS("Cap to frame rate"),
+    SMOOTHNESS("Smoothest video"),
+}
+
+/** PC streaming quality and behaviour. [bitrateKbps] 0 = pick from resolution and frame rate. */
+data class StreamSettings(
+    val resolution: StreamResolution = StreamResolution.P1080,
+    val fps: Int = 60,
+    val bitrateKbps: Int = 0,
+    val codec: StreamCodec = StreamCodec.AUTO,
+    val hdr: Boolean = false,
+    val audio: StreamAudio = StreamAudio.STEREO,
+    val framePacing: FramePacing = FramePacing.BALANCED,
+    val showStats: Boolean = false,
+    /** Keep sound playing on the PC too. */
+    val playHostAudio: Boolean = false,
+    /** Let the host change its resolution to match the stream. */
+    val optimizeHostSettings: Boolean = true,
+    /** Touchscreen moves the mouse like a laptop trackpad (off = tap where you point). */
+    val touchAsTrackpad: Boolean = true,
+    /** Quit the game on the PC when disconnecting from the in-stream menu by default. */
+    val quitOnDisconnect: Boolean = false,
+) {
+    companion object {
+        val FPS_OPTIONS = listOf(30, 60, 90, 120)
+        /** 0 = automatic. Values in kbps. */
+        val BITRATE_OPTIONS = listOf(0, 5_000, 10_000, 20_000, 30_000, 40_000, 60_000, 80_000, 100_000, 150_000)
+    }
+}
+
 data class Settings(
     val onboardingDone: Boolean = false,
     val glyphStyle: GlyphStyle = GlyphStyle.XBOX,
@@ -48,7 +94,18 @@ data class Settings(
     val homeRowOrder: List<String> = emptyList(),
     /** Home shelf ids the user has hidden. */
     val hiddenHomeRows: Set<String> = emptySet(),
-)
+    val stream: StreamSettings = StreamSettings(),
+    /** Collections PocketDeck fills by itself (Android, PC, each system…). */
+    val autoCollections: Boolean = true,
+    /** Auto collection ids the user hid. */
+    val hiddenAutoCollections: Set<String> = emptySet(),
+    val collectionSort: CollectionSort = CollectionSort.NAME,
+    /** Collection key (`c:<id>` or an auto collection id) → [GameSort] name. */
+    val collectionGameSorts: Map<String, String> = emptyMap(),
+) {
+    fun gameSortFor(collectionKey: String): GameSort =
+        collectionGameSorts[collectionKey]?.let { n -> GameSort.entries.firstOrNull { it.name == n } } ?: GameSort.NAME
+}
 
 private val Context.dataStore by preferencesDataStore("settings")
 
@@ -76,6 +133,24 @@ class SettingsRepository(private val context: Context) {
         val hiddenHomeRows = stringSetPreferencesKey("home_rows_hidden")
         val sessionGame = longPreferencesKey("session_game")
         val sessionStart = longPreferencesKey("session_start")
+
+        val streamResolution = stringPreferencesKey("stream_resolution")
+        val streamFps = intPreferencesKey("stream_fps")
+        val streamBitrate = intPreferencesKey("stream_bitrate")
+        val streamCodec = stringPreferencesKey("stream_codec")
+        val streamHdr = booleanPreferencesKey("stream_hdr")
+        val streamAudio = stringPreferencesKey("stream_audio")
+        val streamPacing = stringPreferencesKey("stream_pacing")
+        val streamStats = booleanPreferencesKey("stream_stats")
+        val streamHostAudio = booleanPreferencesKey("stream_host_audio")
+        val streamSops = booleanPreferencesKey("stream_sops")
+        val streamTrackpad = booleanPreferencesKey("stream_trackpad")
+        val streamQuitOnDisconnect = booleanPreferencesKey("stream_quit_on_disconnect")
+
+        val autoCollections = booleanPreferencesKey("auto_collections")
+        val hiddenAutoCollections = stringSetPreferencesKey("auto_collections_hidden")
+        val collectionSort = stringPreferencesKey("collection_sort")
+        val collectionGameSorts = stringPreferencesKey("collection_game_sorts")
     }
 
     private val json = Json { ignoreUnknownKeys = true }
@@ -104,6 +179,25 @@ class SettingsRepository(private val context: Context) {
         returnNotification = this[Keys.returnNotification] ?: false,
         homeRowOrder = this[Keys.homeRowOrder]?.split(ROW_SEPARATOR)?.filter { it.isNotBlank() } ?: emptyList(),
         hiddenHomeRows = this[Keys.hiddenHomeRows] ?: emptySet(),
+        stream = StreamSettings(
+            resolution = enumOr(this[Keys.streamResolution], StreamResolution.P1080),
+            fps = this[Keys.streamFps] ?: 60,
+            bitrateKbps = this[Keys.streamBitrate] ?: 0,
+            codec = enumOr(this[Keys.streamCodec], StreamCodec.AUTO),
+            hdr = this[Keys.streamHdr] ?: false,
+            audio = enumOr(this[Keys.streamAudio], StreamAudio.STEREO),
+            framePacing = enumOr(this[Keys.streamPacing], FramePacing.BALANCED),
+            showStats = this[Keys.streamStats] ?: false,
+            playHostAudio = this[Keys.streamHostAudio] ?: false,
+            optimizeHostSettings = this[Keys.streamSops] ?: true,
+            touchAsTrackpad = this[Keys.streamTrackpad] ?: true,
+            quitOnDisconnect = this[Keys.streamQuitOnDisconnect] ?: false,
+        ),
+        autoCollections = this[Keys.autoCollections] ?: true,
+        hiddenAutoCollections = this[Keys.hiddenAutoCollections] ?: emptySet(),
+        collectionSort = enumOr(this[Keys.collectionSort], CollectionSort.NAME),
+        collectionGameSorts = this[Keys.collectionGameSorts]
+            ?.let { runCatching { json.decodeFromString(mapSerializer, it) }.getOrNull() } ?: emptyMap(),
     )
 
     suspend fun current(): Settings = settings.first()
@@ -127,6 +221,35 @@ class SettingsRepository(private val context: Context) {
     }
     suspend fun resetHomeRows() = edit { it.remove(Keys.homeRowOrder); it.remove(Keys.hiddenHomeRows) }
     suspend fun setReturnNotification(value: Boolean) = edit { it[Keys.returnNotification] = value }
+
+    suspend fun setAutoCollections(value: Boolean) = edit { it[Keys.autoCollections] = value }
+    suspend fun setAutoCollectionHidden(id: String, hidden: Boolean) = edit { prefs ->
+        val set = prefs[Keys.hiddenAutoCollections].orEmpty()
+        prefs[Keys.hiddenAutoCollections] = if (hidden) set + id else set - id
+    }
+    suspend fun showAllAutoCollections() = edit { it.remove(Keys.hiddenAutoCollections) }
+    suspend fun setCollectionSort(sort: CollectionSort) = edit { it[Keys.collectionSort] = sort.name }
+    suspend fun setCollectionGameSort(collectionKey: String, sort: GameSort) = edit { prefs ->
+        val map = prefs.toSettings().collectionGameSorts.toMutableMap()
+        if (sort == GameSort.NAME) map.remove(collectionKey) else map[collectionKey] = sort.name
+        prefs[Keys.collectionGameSorts] = json.encodeToString(mapSerializer, map)
+    }
+
+    /** Saves every streaming setting at once (the screen edits a copy of [StreamSettings]). */
+    suspend fun setStream(s: StreamSettings) = edit {
+        it[Keys.streamResolution] = s.resolution.name
+        it[Keys.streamFps] = s.fps
+        it[Keys.streamBitrate] = s.bitrateKbps
+        it[Keys.streamCodec] = s.codec.name
+        it[Keys.streamHdr] = s.hdr
+        it[Keys.streamAudio] = s.audio.name
+        it[Keys.streamPacing] = s.framePacing.name
+        it[Keys.streamStats] = s.showStats
+        it[Keys.streamHostAudio] = s.playHostAudio
+        it[Keys.streamSops] = s.optimizeHostSettings
+        it[Keys.streamTrackpad] = s.touchAsTrackpad
+        it[Keys.streamQuitOnDisconnect] = s.quitOnDisconnect
+    }
 
     suspend fun setDefaultEmulator(platformId: String, emulatorId: String?) = edit { prefs ->
         val map = prefs.toSettings().defaultEmulators.toMutableMap()

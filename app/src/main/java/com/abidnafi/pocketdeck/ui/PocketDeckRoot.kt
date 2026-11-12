@@ -64,9 +64,12 @@ object Routes {
     const val ABOUT = "settings/about"
     const val RETURN_SHORTCUTS = "settings/return"
     const val HOME_ROWS = "settings/home-rows"
+    const val STREAMING = "settings/streaming"
+    const val AUTO_COLLECTION = "auto-collection/{key}"
 
     fun details(id: Long) = "details/$id"
     fun collection(id: Long) = "collection/$id"
+    fun autoCollection(key: String) = "auto-collection/${android.net.Uri.encode(key)}"
     fun collectionAdd(id: Long, justCreated: Boolean = false) = "collection/$id/add?new=$justCreated"
 }
 
@@ -142,6 +145,10 @@ fun PocketDeckRoot(container: AppContainer, controller: ControllerDispatcher, hi
                     composable(Routes.ABOUT) { com.abidnafi.pocketdeck.ui.settings.AboutScreen(nav) }
                     composable(Routes.HOME_ROWS) { com.abidnafi.pocketdeck.ui.settings.HomeRowsScreen(nav) }
                     composable(Routes.RETURN_SHORTCUTS) { com.abidnafi.pocketdeck.ui.settings.ReturnShortcutsScreen(nav) }
+                    composable(Routes.STREAMING) { com.abidnafi.pocketdeck.ui.settings.StreamingScreen(nav) }
+                    composable(Routes.AUTO_COLLECTION) {
+                        com.abidnafi.pocketdeck.ui.collections.AutoCollectionDetailScreen(it.arguments?.getString("key").orEmpty(), nav)
+                    }
                 }
 
                 HintBar(Modifier.align(Alignment.BottomCenter))

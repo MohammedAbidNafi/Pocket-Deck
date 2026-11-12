@@ -17,8 +17,13 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        // Only for the Moonlight engine's NVIDIA Shield controller extensions (same source as upstream).
+        maven("https://jitpack.io") {
+            content { includeGroup("com.github.cgutman") }
+        }
     }
 }
 
 rootProject.name = "GameHub"
 include(":app")
+include(":moonlight")

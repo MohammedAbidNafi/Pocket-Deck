@@ -138,9 +138,15 @@ fun GameTile(
                         .size(16.dp),
                 )
             }
-            if (game.type == GameType.ROM && platform != null && game.customArt == null) {
+            val badge = when {
+                game.customArt != null -> null
+                game.type == GameType.ROM -> platform?.shortName
+                game.type == GameType.STREAM -> "PC"
+                else -> null
+            }
+            if (badge != null) {
                 Text(
-                    platform.shortName,
+                    badge,
                     style = MaterialTheme.typography.labelSmall,
                     color = Color.White,
                     modifier = Modifier

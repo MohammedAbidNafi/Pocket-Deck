@@ -76,6 +76,8 @@ class MainActivity : ComponentActivity() {
             container.launcher.onReturnedToApp()
             container.library.syncInstalledApps()
         }
+        // Gaming PCs: who's online, and pick up games added on the PC. Best effort, in the background.
+        container.hosts.refreshAll()
     }
 
     override fun onPause() {

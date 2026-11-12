@@ -51,6 +51,15 @@ private const val DEVELOPER_GITHUB = "https://github.com/MohammedAbidNafi"
 private const val APACHE_2 = "Apache License 2.0"
 private const val APACHE_2_URL = "https://www.apache.org/licenses/LICENSE-2.0"
 private const val CC_BY_3_URL = "https://creativecommons.org/licenses/by/3.0/"
+private const val GPL_3 = "GNU GPL v3"
+private const val GPL_3_URL = "https://www.gnu.org/licenses/gpl-3.0.html"
+private const val MIT = "MIT License"
+private const val BSD = "BSD License"
+private const val MOONLIGHT_URL = "https://github.com/moonlight-stream/moonlight-android"
+private const val MOONLIGHT_CORE_URL = "https://github.com/moonlight-stream/moonlight-common-c"
+private const val SUNSHINE_URL = "https://github.com/LizardByte/Sunshine"
+/** Where PocketDeck's own source code is published (GPLv3 requires offering it). */
+private const val SOURCE_URL = DEVELOPER_GITHUB
 
 /** One open-source component bundled in the app. */
 private data class Library(val name: String, val author: String, val license: String, val url: String)
@@ -69,6 +78,17 @@ private val Libraries = listOf(
     Library("Kotlin standard library", "JetBrains s.r.o. and Kotlin contributors", APACHE_2, "https://github.com/JetBrains/kotlin"),
     Library("kotlinx.coroutines", "JetBrains s.r.o. and contributors", APACHE_2, "https://github.com/Kotlin/kotlinx.coroutines"),
     Library("kotlinx.serialization", "JetBrains s.r.o. and contributors", APACHE_2, "https://github.com/Kotlin/kotlinx.serialization"),
+    // PC streaming engine and what it bundles.
+    Library("Moonlight for Android (streaming engine)", "Cameron Gutman and Moonlight contributors", GPL_3, MOONLIGHT_URL),
+    Library("moonlight-common-c", "Cameron Gutman and Moonlight contributors", GPL_3, MOONLIGHT_CORE_URL),
+    Library("ENet", "Lee Salzman", MIT, "https://github.com/cgutman/enet"),
+    Library("nanors (Reed-Solomon)", "Joseph Calderon", MIT, "https://github.com/sleepybishop/nanors"),
+    Library("Opus audio codec", "Xiph.Org Foundation, Skype Limited and contributors", BSD, "https://opus-codec.org"),
+    Library("OpenSSL (libcrypto)", "The OpenSSL Project Authors", APACHE_2, "https://www.openssl.org"),
+    Library("Bouncy Castle", "The Legion of the Bouncy Castle Inc.", MIT, "https://www.bouncycastle.org"),
+    Library("JCodec", "JCodec contributors", BSD, "https://github.com/jcodec/jcodec"),
+    Library("JmDNS", "JmDNS contributors", APACHE_2, "https://github.com/jmdns/jmdns"),
+    Library("ShieldControllerExtensions", "Cameron Gutman", MIT, "https://github.com/cgutman/ShieldControllerExtensions"),
 )
 
 /** About page: who made the app, open-source credits, artwork attributions and trademarks. */
@@ -114,6 +134,40 @@ fun AboutScreen(nav: NavController) {
             )
         }
 
+        SectionHeader("PC streaming")
+        key("moonlight").let { (r, f) ->
+            SettingRow(
+                title = "Powered by Moonlight",
+                subtitle = "PC streaming uses the open-source Moonlight engine (GameStream protocol, video, audio and controller " +
+                    "input) by Cameron Gutman and the Moonlight contributors. Thank you! $appName's screens are its own.",
+                value = GPL_3,
+                icon = Icons.Rounded.Favorite,
+                onClick = { open(MOONLIGHT_URL) },
+                focusRequester = r, onFocusChange = f,
+            )
+        }
+        key("sunshine").let { (r, f) ->
+            SettingRow(
+                title = "Works with Sunshine",
+                subtitle = "Stream from PCs running Sunshine by LizardByte, the open-source GameStream host. Sunshine isn't part of $appName.",
+                value = "LizardByte",
+                icon = Icons.Rounded.Code,
+                onClick = { open(SUNSHINE_URL) },
+                focusRequester = r, onFocusChange = f,
+            )
+        }
+        key("source").let { (r, f) ->
+            SettingRow(
+                title = "$appName source code",
+                subtitle = "$appName includes GPLv3 code, so it is free software under the GNU GPL v3: you may share and change it " +
+                    "under those terms. It comes with no warranty.",
+                value = GPL_3,
+                icon = Icons.Rounded.Code,
+                onClick = { open(SOURCE_URL) },
+                focusRequester = r, onFocusChange = f,
+            )
+        }
+
         SectionHeader("Artwork")
         key("robot").let { (r, f) ->
             SettingRow(
@@ -152,10 +206,23 @@ fun AboutScreen(nav: NavController) {
         }
 
         SectionHeader("Licences")
+        key("gpl").let { (r, f) ->
+            SettingRow(
+                "GNU General Public License v3", { open(GPL_3_URL) }, icon = Icons.AutoMirrored.Rounded.OpenInNew,
+                subtitle = "Covers $appName as a whole, Moonlight and moonlight-common-c", focusRequester = r, onFocusChange = f,
+            )
+        }
         key("apache").let { (r, f) ->
             SettingRow(
                 APACHE_2, { open(APACHE_2_URL) }, icon = Icons.AutoMirrored.Rounded.OpenInNew,
-                subtitle = "Covers every library listed above", focusRequester = r, onFocusChange = f,
+                subtitle = "Covers the AndroidX, Kotlin, Coil, OkHttp, OpenSSL and JmDNS libraries", focusRequester = r, onFocusChange = f,
+            )
+        }
+        key("mitbsd").let { (r, f) ->
+            SettingRow(
+                "MIT and BSD licences", { open("https://opensource.org/license/mit") }, icon = Icons.AutoMirrored.Rounded.OpenInNew,
+                subtitle = "Cover ENet, nanors, Bouncy Castle, ShieldControllerExtensions (MIT), Opus and JCodec (BSD)",
+                focusRequester = r, onFocusChange = f,
             )
         }
         key("ccby").let { (r, f) ->
@@ -176,7 +243,7 @@ fun AboutScreen(nav: NavController) {
             Spacer(Modifier.width(16.dp))
             Text(
                 "Android is a trademark of Google LLC. Xbox, PlayStation and Nintendo, and their controller button " +
-                    "layouts, are trademarks of their respective owners, as are the names of the emulators and games " +
+                    "layouts, are trademarks of their respective owners, as are NVIDIA GameStream and the names of the emulators and games " +
                     "shown in the app. $appName is an independent project and is not affiliated with or endorsed by any of them.",
                 style = MaterialTheme.typography.bodySmall,
                 color = Palette.TextDim,

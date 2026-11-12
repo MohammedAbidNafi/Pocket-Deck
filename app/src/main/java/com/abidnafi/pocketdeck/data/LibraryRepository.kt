@@ -85,7 +85,8 @@ class LibraryRepository(
             }
             gamesDao.insertAll(toInsert)
 
-            val packaged = existing.filter { it.type != GameType.ROM }
+            // Only app/emulator rows are backed by an installed package (ROMs and PC games are not).
+            val packaged = existing.filter { it.type == GameType.APP || it.type == GameType.EMULATOR }
             gamesDao.deleteIds(packaged.filter { it.packageName !in installedByPkg }.map { it.id })
             gamesDao.updateAll(
                 packaged.mapNotNull { g ->
@@ -133,7 +134,8 @@ class LibraryRepository(
      * on the next sync, so those are hidden instead.
      */
     suspend fun remove(game: GameEntity) {
-        if (game.autoDetected || game.type == GameType.ROM) gamesDao.setHidden(game.id, true) else gamesDao.delete(game)
+        // PC games are auto-detected too: they'd return on the next app-list sync.
+        if (game.autoDetected || game.type == GameType.ROM || game.type == GameType.STREAM) gamesDao.setHidden(game.id, true) else gamesDao.delete(game)
     }
 
     /** Copies a picked image into app storage so it survives the source being deleted. */

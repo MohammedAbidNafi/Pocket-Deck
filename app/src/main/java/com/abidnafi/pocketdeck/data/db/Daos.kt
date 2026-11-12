@@ -46,6 +46,15 @@ interface GameDao {
     @Query("DELETE FROM games WHERE folderId = :folderId")
     suspend fun deleteByFolder(folderId: Long)
 
+    @Query("SELECT * FROM games WHERE hostId = :hostId")
+    suspend fun getByHost(hostId: Long): List<GameEntity>
+
+    @Query("DELETE FROM games WHERE hostId = :hostId")
+    suspend fun deleteByHost(hostId: Long)
+
+    @Query("UPDATE games SET hostArt = :path WHERE id = :id")
+    suspend fun setHostArt(id: Long, path: String?)
+
     @Query("UPDATE games SET favorite = :favorite WHERE id = :id")
     suspend fun setFavorite(id: Long, favorite: Boolean)
 
@@ -117,6 +126,30 @@ interface CollectionDao {
 
     @Query("DELETE FROM collection_games WHERE collectionId = :collectionId AND gameId = :gameId")
     suspend fun removeGame(collectionId: Long, gameId: Long)
+}
+
+@Dao
+interface StreamHostDao {
+    @Query("SELECT * FROM stream_hosts ORDER BY name COLLATE NOCASE")
+    fun observeAll(): Flow<List<StreamHostEntity>>
+
+    @Query("SELECT * FROM stream_hosts")
+    suspend fun getAll(): List<StreamHostEntity>
+
+    @Query("SELECT * FROM stream_hosts WHERE id = :id")
+    suspend fun get(id: Long): StreamHostEntity?
+
+    @Query("SELECT * FROM stream_hosts WHERE uuid = :uuid")
+    suspend fun getByUuid(uuid: String): StreamHostEntity?
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insert(host: StreamHostEntity): Long
+
+    @Update
+    suspend fun update(host: StreamHostEntity)
+
+    @Delete
+    suspend fun delete(host: StreamHostEntity)
 }
 
 @Dao
