@@ -29,7 +29,7 @@ PocketDeck is a normal app by default: you open it like any other app (or from i
   - a Quick Settings tile
   - an opt-in accessibility shortcut: hold **Select + Start** (View + Menu on Xbox) in any game. It only watches controller buttons and passes them through unchanged.
 - **Home-screen widget** (Glance) that shows last played, recently added, favourites, all games or a collection.
-- **Optional home screen:** turn on **Settings → Home screen → Use as home screen** to make PocketDeck open when you press Home. A button in the top bar (and **Switch to Android home** in the Start menu) opens your regular launcher, and Home brings you back. Off by default.
+- **Optional home screen:** turn on **Use as home screen** (in setup or Settings → Home screen) to make PocketDeck open when you press Home. A button in the top bar (and **Switch to Android home** in the Start menu) opens your regular launcher, and Home brings you back. Off by default.
 - **Extras:** guided onboarding (including PC pairing), UI sounds and haptics, an optional clock, and accent theming.
 
 ## PC streaming
@@ -86,7 +86,7 @@ Full notes and downloads for every version are on the [Releases page](https://gi
 
 ### 0.3.0
 
-- **Use PocketDeck as your home screen (optional):** turn it on in **Settings → Home screen**, and Android asks you to make PocketDeck the default home app. It's off by default, and turning it off hands Home straight back to your regular launcher.
+- **Use PocketDeck as your home screen (optional):** turn it on in **Settings → Home screen**, or right in setup on the "Add your games" page, and Android asks you to make PocketDeck the default home app. It's off by default, and turning it off hands Home straight back to your regular launcher.
 - **One press back to Android:** while PocketDeck is your home screen, a button in the top bar and **Switch to Android home** in the Start menu open your regular launcher (you choose which one if you have several). Press Home to come back.
 - **Home behaves like a console:** pressing Home inside PocketDeck jumps back to its Home tab, and Back on the Home tab no longer closes it.
 - **Updated libraries:** Jetpack Compose, AndroidX and other dependencies.

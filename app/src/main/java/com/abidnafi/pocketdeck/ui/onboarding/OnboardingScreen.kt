@@ -42,6 +42,8 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.rounded.Android
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Computer
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.CreateNewFolder
 import androidx.compose.material.icons.rounded.Gamepad
 import androidx.compose.material.icons.rounded.SportsEsports
@@ -335,10 +337,12 @@ private fun GamesStep(nav: NavController, onFinish: () -> Unit) {
     val scope = rememberCoroutineScope()
     val first = remember { FocusRequester() }
     val pick = rememberRomFolderPicker { uri -> scope.launch { library.addRomFolder(uri, null) } }
+    val homeToggle = com.abidnafi.pocketdeck.ui.rememberHomeScreenToggle()
     Page(
         "Add your games",
         "Installed Android games are found automatically. Add a folder of ROMs to bring in your emulated games — " +
-            "sub-folders named after systems (snes, gba, psx…) are sorted for you. Have a gaming PC? Pair it to stream its games.",
+            "sub-folders named after systems (snes, gba, psx…) are sorted for you. Have a gaming PC? Pair it to stream its games. " +
+            "You can also make PocketDeck your home screen.",
     ) {
         SettingRow(
             "Add ROM folder", pick, icon = Icons.Rounded.CreateNewFolder, focusRequester = first,
@@ -354,6 +358,20 @@ private fun GamesStep(nav: NavController, onFinish: () -> Unit) {
             value = if (paired.isEmpty()) null else "${paired.size} paired",
             subtitle = paired.joinToString { it.name }.ifEmpty { "Pair a PC running Sunshine and play its games here" },
         )
+        Spacer(Modifier.height(6.dp))
+        // Optional: make PocketDeck the home screen (Android asks to confirm). Also in Settings → Home screen.
+        SettingRow(
+            "Use as home screen", homeToggle.toggle, icon = Icons.Rounded.Home,
+            toggle = homeToggle.state.available,
+            subtitle = homeToggle.subtitle,
+        )
+        if (homeToggle.state.available && !homeToggle.state.isDefault) {
+            Spacer(Modifier.height(6.dp))
+            SettingRow(
+                "Make PocketDeck the default", homeToggle.makeDefault, icon = Icons.Rounded.CheckCircle,
+                subtitle = "Choose PocketDeck as the home app in Android's prompt",
+            )
+        }
         Spacer(Modifier.height(16.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             ConsoleButton("Done", onFinish, icon = Icons.Rounded.Check, primary = true)

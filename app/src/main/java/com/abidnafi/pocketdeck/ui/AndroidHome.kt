@@ -3,6 +3,7 @@ package com.abidnafi.pocketdeck.ui
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -89,5 +90,63 @@ fun AndroidHomePicker(switcher: AndroidHomeSwitcher) {
             }
         },
         onDismiss = { switcher.choices = null },
+    )
+}
+
+/** State and actions for the "Use as home screen" switch, shared by Settings and setup. */
+class HomeScreenToggle internal constructor(
+    val state: com.abidnafi.pocketdeck.data.HomeState,
+    /** Turns home-screen mode on (and asks Android to make PocketDeck the default) or off. */
+    val toggle: () -> Unit,
+    /** Shows Android's "default home app" prompt again. */
+    val makeDefault: () -> Unit,
+) {
+    val subtitle: String
+        get() = when {
+            state.isDefault -> "PocketDeck opens when you press Home"
+            state.available -> "Available as a home app, but not the default yet"
+            else -> "Open PocketDeck when you press Home, like a console"
+        }
+}
+
+/** Re-reads the real state whenever the screen comes back (the default may have changed in Android's settings). */
+@Composable
+fun rememberHomeScreenToggle(): HomeScreenToggle {
+    val homeMode = LocalAppContainer.current.homeMode
+    val messages = LocalMessages.current
+    val state by homeMode.state.collectAsState()
+    androidx.lifecycle.compose.LifecycleResumeEffect(Unit) {
+        homeMode.refresh()
+        onPauseOrDispose { }
+    }
+    val ask = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult(),
+    ) { homeMode.refresh() }
+    fun makeDefault() {
+        try {
+            ask.launch(homeMode.makeDefaultIntent())
+        } catch (e: android.content.ActivityNotFoundException) {
+            runCatching { ask.launch(homeMode.homeSettingsIntent()) }
+                .onFailure { messages.show("Can't open home settings", "Choose PocketDeck in Android Settings → Apps → Default apps → Home app.") }
+        }
+    }
+    return HomeScreenToggle(
+        state = state,
+        toggle = {
+            if (state.available) {
+                val wasDefault = state.isDefault
+                homeMode.setAvailable(false)
+                if (wasDefault) {
+                    messages.show(
+                        "PocketDeck isn't your home screen any more",
+                        "Pressing Home now opens your regular launcher (Android may ask which one).",
+                    )
+                }
+            } else {
+                homeMode.setAvailable(true)
+                makeDefault()
+            }
+        },
+        makeDefault = ::makeDefault,
     )
 }
