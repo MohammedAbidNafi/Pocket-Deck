@@ -86,7 +86,7 @@ Full notes and downloads for every version are on the [Releases page](https://gi
 
 ### 0.3.0
 
-- **Use PocketDeck as your home screen (optional):** turn it on in **Settings → Home screen**, or right in setup on the "Add your games" page, and Android asks you to make PocketDeck the default home app. It's off by default, and turning it off hands Home straight back to your regular launcher.
+- **Use PocketDeck as your home screen (optional):** turn it on in **Settings → Home screen**, or on the new **Home screen** page at the end of setup, and Android asks you to make PocketDeck the default home app. It's off by default, and turning it off hands Home straight back to your regular launcher.
 - **One press back to Android:** while PocketDeck is your home screen, a button in the top bar and **Switch to Android home** in the Start menu open your regular launcher (you choose which one if you have several). Press Home to come back.
 - **Home behaves like a console:** pressing Home inside PocketDeck jumps back to its Home tab, and Back on the Home tab no longer closes it.
 - **Updated libraries:** Jetpack Compose, AndroidX and other dependencies.

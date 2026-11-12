@@ -42,6 +42,7 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.rounded.Android
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Computer
+import androidx.compose.material.icons.rounded.PhoneAndroid
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.CreateNewFolder
@@ -97,6 +98,7 @@ import com.abidnafi.pocketdeck.ui.components.ConsoleButton
 import com.abidnafi.pocketdeck.ui.components.FaceButtonsPreview
 import com.abidnafi.pocketdeck.ui.components.FocusCard
 import com.abidnafi.pocketdeck.ui.components.InitialFocus
+import com.abidnafi.pocketdeck.ui.components.tryFocus
 import com.abidnafi.pocketdeck.ui.components.ScreenPadding
 import com.abidnafi.pocketdeck.ui.components.SettingRow
 import com.abidnafi.pocketdeck.ui.settings.rememberRomFolderPicker
@@ -105,9 +107,9 @@ import com.abidnafi.pocketdeck.ui.theme.Palette
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-private const val STEPS = 4
+private const val STEPS = 5
 
-/** First-run setup: welcome, controller style, look (colour / tile shape / size), add games, then a short "setting up" hand-off. */
+/** First-run setup: welcome, controller style, look (colour / tile shape / size), add games, home screen, then a short "setting up" hand-off. */
 @Composable
 fun OnboardingScreen(nav: NavController) {
     val container = LocalAppContainer.current
@@ -136,7 +138,8 @@ fun OnboardingScreen(nav: NavController) {
                     0 -> Welcome { step = 1 }
                     1 -> ControllerStep { step = 2 }
                     2 -> LookStep { step = 3 }
-                    else -> GamesStep(nav) { finishing = true }
+                    3 -> GamesStep(nav) { step = 4 }
+                    else -> HomeScreenStep { finishing = true }
                 }
             }
         }
@@ -337,12 +340,10 @@ private fun GamesStep(nav: NavController, onFinish: () -> Unit) {
     val scope = rememberCoroutineScope()
     val first = remember { FocusRequester() }
     val pick = rememberRomFolderPicker { uri -> scope.launch { library.addRomFolder(uri, null) } }
-    val homeToggle = com.abidnafi.pocketdeck.ui.rememberHomeScreenToggle()
     Page(
         "Add your games",
         "Installed Android games are found automatically. Add a folder of ROMs to bring in your emulated games — " +
-            "sub-folders named after systems (snes, gba, psx…) are sorted for you. Have a gaming PC? Pair it to stream its games. " +
-            "You can also make PocketDeck your home screen.",
+            "sub-folders named after systems (snes, gba, psx…) are sorted for you. Have a gaming PC? Pair it to stream its games.",
     ) {
         SettingRow(
             "Add ROM folder", pick, icon = Icons.Rounded.CreateNewFolder, focusRequester = first,
@@ -358,28 +359,114 @@ private fun GamesStep(nav: NavController, onFinish: () -> Unit) {
             value = if (paired.isEmpty()) null else "${paired.size} paired",
             subtitle = paired.joinToString { it.name }.ifEmpty { "Pair a PC running Sunshine and play its games here" },
         )
-        Spacer(Modifier.height(6.dp))
-        // Optional: make PocketDeck the home screen (Android asks to confirm). Also in Settings → Home screen.
-        SettingRow(
-            "Use as home screen", homeToggle.toggle, icon = Icons.Rounded.Home,
-            toggle = homeToggle.state.available,
-            subtitle = homeToggle.subtitle,
-        )
-        if (homeToggle.state.available && !homeToggle.state.isDefault) {
-            Spacer(Modifier.height(6.dp))
-            SettingRow(
-                "Make PocketDeck the default", homeToggle.makeDefault, icon = Icons.Rounded.CheckCircle,
-                subtitle = "Choose PocketDeck as the home app in Android's prompt",
-            )
-        }
         Spacer(Modifier.height(16.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
-            ConsoleButton("Done", onFinish, icon = Icons.Rounded.Check, primary = true)
+            ConsoleButton("Next", onFinish, icon = Icons.AutoMirrored.Rounded.ArrowForward, primary = true)
             Spacer(Modifier.width(18.dp))
             Text("${games.count { !it.hidden }} games in your library", style = MaterialTheme.typography.titleMedium, color = Palette.TextDim)
         }
     }
     InitialFocus(null, first)
+}
+
+/**
+ * Optional last step: make PocketDeck the home screen. "Use as home screen" turns the mode on and
+ * shows Android's own "default home app" prompt; "Keep my launcher" leaves it off.
+ */
+@Composable
+private fun HomeScreenStep(onFinish: () -> Unit) {
+    val home = com.abidnafi.pocketdeck.ui.rememberHomeScreenToggle()
+    val state = home.state
+    val useCard = remember { FocusRequester() }
+    val keepCard = remember { FocusRequester() }
+    val done = remember { FocusRequester() }
+    // Once PocketDeck really is the home app, move on to Done.
+    LaunchedEffect(state.isDefault) { if (state.isDefault) done.tryFocus() }
+
+    Page(
+        "Make it your home screen?",
+        "PocketDeck can open whenever you press Home, like a game console. Your regular launcher stays installed: " +
+            "a button in the top bar takes you to it, and you can turn this off any time in Settings → Home screen.",
+    ) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            HomeChoiceCard(
+                icon = Icons.Rounded.Home,
+                title = "Use as home screen",
+                body = when {
+                    state.isDefault -> "Done: Home now opens PocketDeck"
+                    state.available -> "Not the default yet. Select to choose PocketDeck again"
+                    else -> "Android will ask you to confirm"
+                },
+                selected = state.available,
+                onClick = {
+                    when {
+                        !state.available -> home.toggle()
+                        !state.isDefault -> home.makeDefault()
+                        else -> done.tryFocus()
+                    }
+                },
+                focusRequester = useCard,
+                modifier = Modifier.weight(1f),
+            )
+            HomeChoiceCard(
+                icon = Icons.Rounded.PhoneAndroid,
+                title = "Keep my launcher",
+                body = "Open PocketDeck like any other app",
+                selected = !state.available,
+                onClick = {
+                    if (state.available) home.toggle()
+                    onFinish()
+                },
+                focusRequester = keepCard,
+                modifier = Modifier.weight(1f),
+            )
+        }
+        Spacer(Modifier.height(18.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            ConsoleButton("Done", onFinish, icon = Icons.Rounded.Check, primary = true, focusRequester = done)
+            Spacer(Modifier.width(18.dp))
+            Text(home.subtitle, style = MaterialTheme.typography.titleMedium, color = Palette.TextDim)
+        }
+    }
+    InitialFocus(null, if (state.available) useCard else keepCard)
+}
+
+@Composable
+private fun HomeChoiceCard(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    body: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    focusRequester: FocusRequester,
+    modifier: Modifier = Modifier,
+) {
+    val accent = LocalAccent.current
+    FocusCard(onClick = onClick, modifier = modifier, corner = 22.dp, focusScale = 1.05f, focusRequester = focusRequester) { focused ->
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .background(if (focused) Palette.SurfaceHigher else Palette.Surface.copy(alpha = 0.85f))
+                .padding(vertical = 22.dp, horizontal = 18.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Box(
+                Modifier.size(56.dp).background(if (selected) accent else Palette.SurfaceHigh, CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(icon, null, tint = Color.White, modifier = Modifier.size(30.dp))
+            }
+            Spacer(Modifier.height(12.dp))
+            Text(title, style = MaterialTheme.typography.titleLarge, color = Palette.Text)
+            Spacer(Modifier.height(4.dp))
+            Text(
+                body,
+                style = MaterialTheme.typography.bodyMedium,
+                color = Palette.TextDim,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            )
+        }
+    }
 }
 
 /**
