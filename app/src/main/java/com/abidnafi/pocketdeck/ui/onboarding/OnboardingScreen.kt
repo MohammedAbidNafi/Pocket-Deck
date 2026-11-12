@@ -370,8 +370,8 @@ private fun GamesStep(nav: NavController, onFinish: () -> Unit) {
 }
 
 /**
- * Optional last step: make PocketDeck the home screen. "Use as home screen" turns the mode on and
- * shows Android's own "default home app" prompt; "Keep my launcher" leaves it off.
+ * Optional last step: make PocketDeck the home screen. "Make it my home screen" turns the mode on and
+ * shows Android's own "default home app" prompt; "Keep it as an app" leaves it off.
  */
 @Composable
 private fun HomeScreenStep(onFinish: () -> Unit) {
@@ -391,7 +391,7 @@ private fun HomeScreenStep(onFinish: () -> Unit) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             HomeChoiceCard(
                 icon = Icons.Rounded.Home,
-                title = "Use as home screen",
+                title = "Make it my home screen",
                 body = when {
                     state.isDefault -> "Done: Home now opens PocketDeck"
                     state.available -> "Not the default yet. Select to choose PocketDeck again"
@@ -410,8 +410,8 @@ private fun HomeScreenStep(onFinish: () -> Unit) {
             )
             HomeChoiceCard(
                 icon = Icons.Rounded.PhoneAndroid,
-                title = "Keep my launcher",
-                body = "Open PocketDeck like any other app",
+                title = "Keep it as an app",
+                body = "Open PocketDeck from your app drawer, like any other app",
                 selected = !state.available,
                 onClick = {
                     if (state.available) home.toggle()
