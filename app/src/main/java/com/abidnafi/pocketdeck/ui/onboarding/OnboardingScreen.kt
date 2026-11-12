@@ -42,6 +42,8 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.rounded.Android
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Computer
+import androidx.compose.material.icons.rounded.QrCodeScanner
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material.icons.rounded.CreateNewFolder
 import androidx.compose.material.icons.rounded.Gamepad
 import androidx.compose.material.icons.rounded.SportsEsports
@@ -354,6 +356,14 @@ private fun GamesStep(nav: NavController, onFinish: () -> Unit) {
             value = if (paired.isEmpty()) null else "${paired.size} paired",
             subtitle = paired.joinToString { it.name }.ifEmpty { "Pair a PC running Sunshine and play its games here" },
         )
+        val context = LocalContext.current
+        if (remember { com.abidnafi.pocketdeck.ui.settings.canScanPairCode(context) }) {
+            Spacer(Modifier.height(6.dp))
+            SettingRow(
+                "Scan your PC's code", { nav.navigate(Routes.SCAN_PAIR) }, icon = Icons.Rounded.QrCodeScanner,
+                subtitle = "Have PocketDeck on the PC? Open Devices → Pair a phone and scan the code",
+            )
+        }
         Spacer(Modifier.height(16.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             ConsoleButton("Done", onFinish, icon = Icons.Rounded.Check, primary = true)

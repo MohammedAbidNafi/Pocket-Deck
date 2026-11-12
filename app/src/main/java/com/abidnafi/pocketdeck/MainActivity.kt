@@ -44,6 +44,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        if (savedInstanceState == null) takePairLink(intent)
         hideSystemBars()
         lifecycleScope.launch {
             container.settings.settings.collect {
@@ -78,6 +79,19 @@ class MainActivity : ComponentActivity() {
         }
         // Gaming PCs: who's online, and pick up games added on the PC. Best effort, in the background.
         container.hosts.refreshAll()
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        takePairLink(intent)
+    }
+
+    /** Pair with one scan: a pocketdeck://pair link from the system camera or another app. */
+    private fun takePairLink(intent: android.content.Intent?) {
+        val data = intent?.data ?: return
+        if (intent.action == android.content.Intent.ACTION_VIEW && data.scheme == "pocketdeck" && data.host == "pair") {
+            container.hosts.offerPairLink(data.toString())
+        }
     }
 
     override fun onPause() {

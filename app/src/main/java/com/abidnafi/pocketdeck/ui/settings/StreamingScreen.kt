@@ -27,6 +27,7 @@ import androidx.compose.material.icons.rounded.Insights
 import androidx.compose.material.icons.rounded.Link
 import androidx.compose.material.icons.rounded.Movie
 import androidx.compose.material.icons.rounded.PowerSettingsNew
+import androidx.compose.material.icons.rounded.QrCodeScanner
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.StopCircle
@@ -50,6 +51,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -64,7 +66,10 @@ import com.abidnafi.pocketdeck.data.db.GameType
 import com.abidnafi.pocketdeck.data.db.StreamHostEntity
 import com.abidnafi.pocketdeck.data.stream.HostRepository
 import com.abidnafi.pocketdeck.data.stream.HostStatus
+import com.abidnafi.pocketdeck.data.stream.PairCode
 import com.abidnafi.pocketdeck.data.stream.PairingState
+import com.abidnafi.pocketdeck.BuildConfig
+import com.abidnafi.pocketdeck.ui.Routes
 import com.abidnafi.pocketdeck.input.Btn
 import com.abidnafi.pocketdeck.input.Hint
 import com.abidnafi.pocketdeck.ui.LocalAppContainer
@@ -107,6 +112,10 @@ fun StreamingScreen(nav: NavController) {
     var selected by remember { mutableStateOf<StreamHostEntity?>(null) }
     var removing by remember { mutableStateOf<StreamHostEntity?>(null) }
     var addingManual by remember { mutableStateOf(false) }
+    var pastingLink by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val canScan = remember { canScanPairCode(context) }
+    val scanRow = remember { FocusRequester() }
     var picker by remember { mutableStateOf<StreamPicker?>(null) }
 
     // Look for PCs while this page is open, and check the known ones.
@@ -130,11 +139,24 @@ fun StreamingScreen(nav: NavController) {
             "Its games show up in your library.",
     ) {
         SectionHeader("Gaming PCs")
+        if (canScan) {
+            SettingRow(
+                "Scan PC's code", { nav.navigate(Routes.SCAN_PAIR) }, icon = Icons.Rounded.QrCodeScanner,
+                subtitle = "Pair in one step: open PocketDeck on the PC → Devices → Pair a phone",
+                focusRequester = scanRow,
+            )
+        }
         SettingRow(
             "Add PC by address", { addingManual = true }, icon = Icons.Rounded.Add,
             subtitle = "If your PC isn't found automatically, type its IP address",
             focusRequester = addRow,
         )
+        if (BuildConfig.DEBUG) {
+            SettingRow(
+                "Paste pairing link", { pastingLink = true }, icon = Icons.Rounded.Link,
+                subtitle = "Debug builds: test pair with one scan without a camera",
+            )
+        }
         if (discovering) {
             Row(Modifier.padding(horizontal = 4.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp, color = LocalAccent.current)
@@ -205,7 +227,7 @@ fun StreamingScreen(nav: NavController) {
             modifier = Modifier.padding(top = 12.dp, start = 4.dp),
         )
     }
-    InitialFocus(memory, addRow)
+    InitialFocus(memory, if (canScan) scanRow else addRow)
 
     // ---- Per-host menu ----
     val sel = selected
@@ -286,6 +308,22 @@ fun StreamingScreen(nav: NavController) {
         },
     )
 
+    TextEntryOverlay(
+        visible = pastingLink,
+        title = "Pairing link",
+        initial = "",
+        placeholder = "pocketdeck://pair?v=1&…",
+        onDismiss = { pastingLink = false; addRow.tryFocus() },
+        onDone = { text ->
+            pastingLink = false
+            when (val r = PairCode.parse(text)) {
+                is PairCode.Parsed.Ok -> hostsRepo.startPairFromScan(r.code)
+                PairCode.Parsed.NotPairCode -> messages.show("Not a pairing link", "It should start with pocketdeck://pair")
+                is PairCode.Parsed.Invalid -> messages.show("Can't use that link", r.message)
+            }
+        },
+    )
+
     // ---- Quality pickers ----
     fun close() {
         picker = null
@@ -346,13 +384,14 @@ fun StreamingScreen(nav: NavController) {
         },
         onDismiss = ::close,
     )
-
-    PairingOverlay()
 }
 
-/** Shows the pairing PIN while the user types it into Sunshine, then the result. */
+/**
+ * Pairing progress, shown over any page: the PIN while the user types it into Sunshine (or, with a
+ * scanned code, "Pairing with…" while the PC enters it), then the result. [onScanAgain] opens the scanner.
+ */
 @Composable
-fun PairingOverlay() {
+fun PairingOverlay(onScanAgain: (() -> Unit)?) {
     val hostsRepo = LocalAppContainer.current.hosts
     val pairing by hostsRepo.pairing.collectAsState()
     val hosts by hostsRepo.hosts.collectAsState(emptyList())
@@ -375,7 +414,29 @@ fun PairingOverlay() {
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 when (state) {
-                    is PairingState.Waiting -> {
+                    is PairingState.Connecting -> {
+                        Text("Looking for ${state.hostName}", style = MaterialTheme.typography.headlineMedium, color = Palette.Text)
+                        Spacer(Modifier.height(18.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = LocalAccent.current)
+                            Spacer(Modifier.width(10.dp))
+                            Text("Connecting over your network…", style = MaterialTheme.typography.bodyMedium, color = Palette.TextDim)
+                        }
+                        Spacer(Modifier.height(20.dp))
+                        ConsoleButton("Hide", { hostsRepo.cancelPairingUi() }, focusRequester = button)
+                    }
+                    is PairingState.Waiting -> if (state.pin == null) {
+                        Text("Pairing with ${state.hostName}…", style = MaterialTheme.typography.headlineMedium, color = Palette.Text)
+                        Spacer(Modifier.height(10.dp))
+                        Text(
+                            "PocketDeck on the PC confirms the code by itself. Keep the code on the PC's screen until this finishes.",
+                            style = MaterialTheme.typography.bodyLarge, color = Palette.TextDim,
+                        )
+                        Spacer(Modifier.height(18.dp))
+                        CircularProgressIndicator(Modifier.size(28.dp), strokeWidth = 3.dp, color = LocalAccent.current)
+                        Spacer(Modifier.height(20.dp))
+                        ConsoleButton("Hide", { hostsRepo.cancelPairingUi() }, focusRequester = button)
+                    } else {
                         Text("Pair with ${state.hostName}", style = MaterialTheme.typography.headlineMedium, color = Palette.Text)
                         Spacer(Modifier.height(10.dp))
                         Text(
@@ -413,10 +474,21 @@ fun PairingOverlay() {
                         Text(state.message, style = MaterialTheme.typography.bodyLarge, color = Palette.TextDim)
                         Spacer(Modifier.height(20.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            ConsoleButton("Close", { hostsRepo.cancelPairingUi() })
                             val host = hosts.firstOrNull { it.id == state.hostId }
-                            if (host != null) {
-                                ConsoleButton("Try again", { scope.launch { hostsRepo.pair(host) } }, primary = true, focusRequester = button)
+                            when {
+                                // A scanned code's PIN is used up or stale; the PC has to show a new one.
+                                state.fromScan && onScanAgain != null -> {
+                                    ConsoleButton("Close", { hostsRepo.cancelPairingUi() })
+                                    ConsoleButton(
+                                        "Scan again", { hostsRepo.cancelPairingUi(); onScanAgain() },
+                                        primary = true, focusRequester = button,
+                                    )
+                                }
+                                !state.fromScan && host != null -> {
+                                    ConsoleButton("Close", { hostsRepo.cancelPairingUi() })
+                                    ConsoleButton("Try again", { scope.launch { hostsRepo.pair(host) } }, primary = true, focusRequester = button)
+                                }
+                                else -> ConsoleButton("Close", { hostsRepo.cancelPairingUi() }, focusRequester = button)
                             }
                         }
                     }

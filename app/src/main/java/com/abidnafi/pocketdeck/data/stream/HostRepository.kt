@@ -20,6 +20,7 @@ import com.limelight.nvstream.mdns.NsdManagerDiscoveryAgent
 import com.limelight.nvstream.wol.WakeOnLanSender
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -34,6 +35,7 @@ import java.io.File
 import java.io.FileNotFoundException
 import java.net.Inet4Address
 import java.net.UnknownHostException
+import java.security.MessageDigest
 import java.security.cert.CertificateFactory
 import java.security.cert.X509Certificate
 
@@ -52,9 +54,13 @@ data class HostStatus(
 
 sealed interface PairingState {
     data object Idle : PairingState
-    data class Waiting(val hostId: Long, val hostName: String, val pin: String) : PairingState
+    /** Pair with one scan: looking for the PC on the addresses in its code. */
+    data class Connecting(val hostName: String) : PairingState
+    /** [pin] is shown for the user to type into Sunshine; null when the PC enters it (pair with one scan). */
+    data class Waiting(val hostId: Long, val hostName: String, val pin: String?) : PairingState
     data class Done(val hostId: Long, val hostName: String) : PairingState
-    data class Failed(val hostId: Long, val message: String) : PairingState
+    /** [hostId] is null when no host was reached. [fromScan]: retry by showing a new code, not by re-pairing. */
+    data class Failed(val hostId: Long?, val message: String, val fromScan: Boolean = false) : PairingState
 }
 
 /** Everything needed to open a stream to a host. */
@@ -288,28 +294,40 @@ class HostRepository(
     // ---- Pairing --------------------------------------------------------------------------------
 
     /**
-     * Pairs with [host]: shows a PIN through [pairing] that the user types into Sunshine's web UI,
-     * then pins the host's certificate. Returns true when paired.
+     * Pairs with [host] and pins the host's certificate. Returns true when paired.
+     *
+     * Without [pin], shows a new PIN through [pairing] that the user types into Sunshine's web UI.
+     * With [pin] and [fingerprint] (pair with one scan), the PC enters the PIN itself, and the host's
+     * certificate must match [fingerprint] (SHA-256 of its DER, lowercase hex).
      */
-    suspend fun pair(host: StreamHostEntity): Boolean = withContext(Dispatchers.IO) {
+    suspend fun pair(host: StreamHostEntity, pin: String? = null, fingerprint: String? = null): Boolean = withContext(Dispatchers.IO) {
+        val fromScan = pin != null
         val st = status.value[host.id]?.takeIf { it.online } ?: refresh(host)
         if (!st.online || st.address == null) {
-            _pairing.value = PairingState.Failed(host.id, "${host.name} is offline. Turn it on (or wake it) and try again.")
+            _pairing.value = PairingState.Failed(host.id, "${host.name} is offline. Turn it on (or wake it) and try again.", fromScan)
             return@withContext false
         }
         try {
-            val http = http(st.address, host.httpPort, st.httpsPort, cert(host))
-            if (host.paired && http.pairState == PairingManager.PairState.PAIRED) {
+            val stored = cert(host)
+            val http = http(st.address, host.httpPort, st.httpsPort, stored)
+            val storedMatches = fingerprint == null || stored != null && sha256Hex(stored.encoded) == fingerprint
+            if (host.paired && storedMatches && http.pairState == PairingManager.PairState.PAIRED) {
                 _pairing.value = PairingState.Done(host.id, host.name)
                 return@withContext true
             }
-            val pin = PairingManager.generatePinString()
-            _pairing.value = PairingState.Waiting(host.id, host.name, pin)
+            val usedPin = pin ?: PairingManager.generatePinString()
+            _pairing.value = PairingState.Waiting(host.id, host.name, if (fromScan) null else usedPin)
             val pm = http.pairingManager
-            val result = pm.pair(http.getServerInfo(true), pin)
+            val result = pm.pair(http.getServerInfo(true), usedPin)
             when (result) {
                 PairingManager.PairState.PAIRED -> {
-                    val pem = Base64.encodeToString(pm.pairedCert.encoded, Base64.NO_WRAP)
+                    val serverCert = pm.pairedCert
+                    if (fingerprint != null && sha256Hex(serverCert.encoded) != fingerprint) {
+                        // Someone else answered on that address: undo the pairing and keep nothing of it.
+                        runCatching { http(st.address, host.httpPort, st.httpsPort, serverCert).unpair() }
+                        return@withContext fail(host, "This code doesn't match the PC that answered.", fromScan)
+                    }
+                    val pem = Base64.encodeToString(serverCert.encoded, Base64.NO_WRAP)
                     val paired = writeLock.withLock {
                         val h = (hostsDao.get(host.id) ?: host).copy(serverCert = pem)
                         hostsDao.update(h)
@@ -320,27 +338,80 @@ class HostRepository(
                     syncApps(paired)
                     true
                 }
-                PairingManager.PairState.PIN_WRONG -> fail(host, "The PIN didn't match. Try again and enter the new PIN.")
-                PairingManager.PairState.ALREADY_IN_PROGRESS -> fail(host, "Another device is already pairing with ${host.name}.")
+                PairingManager.PairState.PIN_WRONG -> fail(
+                    host,
+                    // With a scanned code the PC enters the PIN, so a mismatch almost always means a stale code.
+                    if (fromScan) "The code expired. Show a new one on the PC." else "The PIN didn't match. Try again and enter the new PIN.",
+                    fromScan,
+                )
+                PairingManager.PairState.ALREADY_IN_PROGRESS -> fail(host, "Another device is already pairing with ${host.name}.", fromScan)
                 PairingManager.PairState.FAILED ->
                     fail(
                         host,
-                        if (st.runningAppId != 0) "${host.name} is busy streaming a game. Quit it on the PC and try again."
-                        else "Pairing failed. Make sure you entered the PIN in Sunshine's web UI (PIN tab).",
+                        when {
+                            st.runningAppId != 0 -> "${host.name} is busy streaming a game. Quit it on the PC and try again."
+                            fromScan -> "Pairing didn't finish. Show a new code on the PC and scan it again."
+                            else -> "Pairing failed. Make sure you entered the PIN in Sunshine's web UI (PIN tab)."
+                        },
+                        fromScan,
                     )
-                else -> fail(host, "Pairing failed.")
+                else -> fail(host, "Pairing failed.", fromScan)
             }
         } catch (e: FileNotFoundException) {
-            fail(host, "${host.name} doesn't support pairing (404).")
+            fail(host, "${host.name} doesn't support pairing (404).", fromScan)
         } catch (e: Exception) {
-            fail(host, e.message ?: "Pairing failed.")
+            fail(host, e.message ?: "Pairing failed.", fromScan)
         }
     }
 
-    private fun fail(host: StreamHostEntity, message: String): Boolean {
-        _pairing.value = PairingState.Failed(host.id, message)
+    private fun fail(host: StreamHostEntity, message: String, fromScan: Boolean = false): Boolean {
+        _pairing.value = PairingState.Failed(host.id, message, fromScan)
         return false
     }
+
+    /**
+     * Pair with one scan: finds the PC on the addresses in [code], adds it, and pairs using the PIN the
+     * PC enters into Sunshine itself. Progress and the result go through [pairing].
+     */
+    suspend fun pairFromScan(code: PairCode): Boolean = withContext(Dispatchers.IO) {
+        _pairing.value = PairingState.Connecting(code.name)
+        // Ask every address at once; the first one in the PC's order that answers wins. The probes run
+        // in the app scope so a slow, dead address doesn't hold us up once a better one has answered.
+        val probes = code.addresses.map { address ->
+            scope.async(Dispatchers.IO) {
+                runCatching { address to http(address, code.httpPort, 0, null).getComputerDetails(true) }.getOrNull()
+            }
+        }
+        var found: Pair<String, ComputerDetails>? = null
+        for (probe in probes) {
+            found = probe.await()
+            if (found != null) break
+        }
+        if (found == null) {
+            _pairing.value = PairingState.Failed(
+                null, "Can't reach ${code.name}. Make sure the phone is on the same Wi-Fi as the PC.", fromScan = true,
+            )
+            return@withContext false
+        }
+        val (address, details) = found
+        val host = upsert(details, localAddress = null, httpPort = code.httpPort, manual = true, manualAddress = address)
+        pair(host, pin = code.pin, fingerprint = code.fingerprint)
+    }
+
+    /** Starts [pairFromScan] in the app's scope, so leaving the scanner page doesn't cancel it. */
+    fun startPairFromScan(code: PairCode) {
+        scope.launch { pairFromScan(code) }
+    }
+
+    private val _pairLink = MutableStateFlow<String?>(null)
+    /** A `pocketdeck://pair` link the app was opened with (e.g. from the system camera), not handled yet. */
+    val pairLink: StateFlow<String?> = _pairLink.asStateFlow()
+
+    fun offerPairLink(link: String) {
+        _pairLink.value = link
+    }
+
+    fun takePairLink(): String? = _pairLink.value.also { _pairLink.value = null }
 
     fun cancelPairingUi() {
         _pairing.value = PairingState.Idle
@@ -433,6 +504,9 @@ class HostRepository(
 
     companion object {
         private const val TAG = "PocketDeck.Hosts"
+
+        private fun sha256Hex(bytes: ByteArray): String =
+            MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
         private const val DISCOVERY_INTERVAL_MS = 1500
 
         /** `host`, `host:port`, `[v6]` or `[v6]:port` → address + HTTP port. */
