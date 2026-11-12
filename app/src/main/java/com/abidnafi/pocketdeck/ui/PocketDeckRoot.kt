@@ -95,6 +95,16 @@ fun PocketDeckRoot(container: AppContainer, controller: ControllerDispatcher, hi
         PocketDeckTheme(Palette.accents.getOrElse(s.accentIndex) { Palette.accents[0] }.color) {
             Box(Modifier.fillMaxSize().background(Palette.Background)) {
                 val nav = rememberNavController()
+                // Home screen mode: pressing Home from any page returns to the main screen.
+                LaunchedEffect(Unit) {
+                    var seen = container.homeMode.homePresses.value
+                    container.homeMode.homePresses.collect { n ->
+                        if (n != seen) {
+                            seen = n
+                            runCatching { nav.popBackStack(Routes.MAIN, inclusive = false) }
+                        }
+                    }
+                }
                 val start = remember { if (s.onboardingDone) Routes.MAIN else Routes.ONBOARDING }
                 NavHost(
                     navController = nav,

@@ -73,6 +73,10 @@ data class StreamSettings(
 
 data class Settings(
     val onboardingDone: Boolean = false,
+    /** Setup step reached so far, so setup resumes there if PocketDeck restarts (e.g. becoming the home app). */
+    val onboardingStep: Int = 0,
+    /** The user chose "Make it my home screen" in setup and is waiting for Android to confirm it. */
+    val onboardingHomeRequested: Boolean = false,
     val glyphStyle: GlyphStyle = GlyphStyle.XBOX,
     /** Nintendo-style confirm on the right face button. */
     val swapAB: Boolean = false,
@@ -102,6 +106,8 @@ data class Settings(
     val collectionSort: CollectionSort = CollectionSort.NAME,
     /** Collection key (`c:<id>` or an auto collection id) → [GameSort] name. */
     val collectionGameSorts: Map<String, String> = emptyMap(),
+    /** Home-screen mode: the Android launcher "Switch to Android home" opens (package name). */
+    val androidLauncher: String? = null,
 ) {
     fun gameSortFor(collectionKey: String): GameSort =
         collectionGameSorts[collectionKey]?.let { n -> GameSort.entries.firstOrNull { it.name == n } } ?: GameSort.NAME
@@ -115,6 +121,8 @@ private const val ROW_SEPARATOR = "|"
 class SettingsRepository(private val context: Context) {
     private object Keys {
         val onboardingDone = booleanPreferencesKey("onboarding_done")
+        val onboardingStep = intPreferencesKey("onboarding_step")
+        val onboardingHomeRequested = booleanPreferencesKey("onboarding_home_requested")
         val glyphStyle = stringPreferencesKey("glyph_style")
         val swapAB = booleanPreferencesKey("swap_ab")
         val uiSounds = booleanPreferencesKey("ui_sounds")
@@ -151,6 +159,7 @@ class SettingsRepository(private val context: Context) {
         val hiddenAutoCollections = stringSetPreferencesKey("auto_collections_hidden")
         val collectionSort = stringPreferencesKey("collection_sort")
         val collectionGameSorts = stringPreferencesKey("collection_game_sorts")
+        val androidLauncher = stringPreferencesKey("android_launcher")
     }
 
     private val json = Json { ignoreUnknownKeys = true }
@@ -161,6 +170,8 @@ class SettingsRepository(private val context: Context) {
 
     private fun Preferences.toSettings() = Settings(
         onboardingDone = this[Keys.onboardingDone] ?: false,
+        onboardingStep = this[Keys.onboardingStep] ?: 0,
+        onboardingHomeRequested = this[Keys.onboardingHomeRequested] ?: false,
         glyphStyle = enumOr(this[Keys.glyphStyle], GlyphStyle.XBOX),
         swapAB = this[Keys.swapAB] ?: false,
         uiSounds = this[Keys.uiSounds] ?: true,
@@ -198,11 +209,19 @@ class SettingsRepository(private val context: Context) {
         collectionSort = enumOr(this[Keys.collectionSort], CollectionSort.NAME),
         collectionGameSorts = this[Keys.collectionGameSorts]
             ?.let { runCatching { json.decodeFromString(mapSerializer, it) }.getOrNull() } ?: emptyMap(),
+        androidLauncher = this[Keys.androidLauncher],
     )
 
     suspend fun current(): Settings = settings.first()
 
-    suspend fun setOnboardingDone(done: Boolean) = edit { it[Keys.onboardingDone] = done }
+    /** Finishing or restarting setup also clears its saved progress. */
+    suspend fun setOnboardingDone(done: Boolean) = edit {
+        it[Keys.onboardingDone] = done
+        it.remove(Keys.onboardingStep)
+        it.remove(Keys.onboardingHomeRequested)
+    }
+    suspend fun setOnboardingStep(step: Int) = edit { it[Keys.onboardingStep] = step }
+    suspend fun setOnboardingHomeRequested(value: Boolean) = edit { it[Keys.onboardingHomeRequested] = value }
     suspend fun setGlyphStyle(style: GlyphStyle) = edit { it[Keys.glyphStyle] = style.name }
     suspend fun setSwapAB(value: Boolean) = edit { it[Keys.swapAB] = value }
     suspend fun setUiSounds(value: Boolean) = edit { it[Keys.uiSounds] = value }
@@ -222,6 +241,7 @@ class SettingsRepository(private val context: Context) {
     suspend fun resetHomeRows() = edit { it.remove(Keys.homeRowOrder); it.remove(Keys.hiddenHomeRows) }
     suspend fun setReturnNotification(value: Boolean) = edit { it[Keys.returnNotification] = value }
 
+    suspend fun setAndroidLauncher(pkg: String?) = edit { if (pkg == null) it.remove(Keys.androidLauncher) else it[Keys.androidLauncher] = pkg }
     suspend fun setAutoCollections(value: Boolean) = edit { it[Keys.autoCollections] = value }
     suspend fun setAutoCollectionHidden(id: String, hidden: Boolean) = edit { prefs ->
         val set = prefs[Keys.hiddenAutoCollections].orEmpty()

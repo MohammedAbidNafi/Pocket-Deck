@@ -29,6 +29,13 @@ import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.abidnafi.pocketdeck.ui.rememberAndroidHomeSwitcher
+import com.abidnafi.pocketdeck.ui.LocalAppContainer
+import com.abidnafi.pocketdeck.ui.AndroidHomePicker
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.material.icons.rounded.PhoneAndroid
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.zIndex
 import com.abidnafi.pocketdeck.input.LocalHints
@@ -85,15 +92,31 @@ fun MainShell(nav: NavController) {
     var confirmExit by remember { mutableStateOf(false) }
     val holder = rememberSaveableStateHolder()
     val activity = LocalContext.current.findActivity()
+    val container = LocalAppContainer.current
+    val homeState by container.homeMode.state.collectAsState()
+    val androidHome = rememberAndroidHomeSwitcher()
+    // Home screen mode: pressing Home while PocketDeck is open goes back to the Home tab.
+    val homePresses by container.homeMode.homePresses.collectAsState()
+    var seenHomePresses by rememberSaveable { mutableIntStateOf(homePresses) }
+    LaunchedEffect(homePresses) {
+        if (homePresses != seenHomePresses) {
+            seenHomePresses = homePresses
+            tab = Tab.HOME
+            quickMenu = false
+            confirmExit = false
+        }
+    }
 
     // Top bar: the three tabs, then Search and Settings. L1/R1 walk the whole bar with a
     // focus pill; landing on a tab also switches to it.
-    val barItems = remember { List(Tab.entries.size + 2) { FocusRequester() } }
+    // Tabs, Search, Settings, and (as the home screen) Android home.
+    val barItems = remember { List(Tab.entries.size + 3) { FocusRequester() } }
+    val barCount = Tab.entries.size + if (homeState.isDefault) 3 else 2
     var barFocus by remember { mutableStateOf<Int?>(null) }
 
     fun stepBar(delta: Int) {
         val from = barFocus ?: tab.ordinal
-        val to = (from + delta + barItems.size) % barItems.size
+        val to = (from.coerceAtMost(barCount - 1) + delta + barCount) % barCount
         if (to < Tab.entries.size) tab = Tab.entries[to]
         barFocus = to
         barItems[to].tryFocus()
@@ -109,7 +132,8 @@ fun MainShell(nav: NavController) {
         }
     }
     BackHandler(enabled = tab != Tab.HOME) { tab = Tab.HOME }
-    BackHandler(enabled = tab == Tab.HOME) { confirmExit = true }
+    // As the home screen there's nothing to go back to, so Back on Home does nothing.
+    BackHandler(enabled = tab == Tab.HOME) { if (!homeState.isDefault) confirmExit = true }
 
     // Menus opened from inside a tab (e.g. a game's options) must cover the top bar too.
     val overlayOpen = LocalHints.current.overlayOpen
@@ -138,6 +162,7 @@ fun MainShell(nav: NavController) {
             onTab = { tab = it },
             onSearch = { nav.navigate(Routes.SEARCH) },
             onSettings = { nav.navigate(Routes.SETTINGS) },
+            onAndroidHome = if (homeState.isDefault) ({ androidHome.open() }) else null,
         )
         Box(Modifier.fillMaxSize().zIndex(3f)) {
             QuickMenu(
@@ -146,7 +171,10 @@ fun MainShell(nav: NavController) {
                 onTab = { tab = it; quickMenu = false },
                 onNavigate = { quickMenu = false; nav.navigate(it) },
                 onExit = { quickMenu = false; confirmExit = true },
+                isHome = homeState.isDefault,
+                onAndroidHome = { quickMenu = false; androidHome.open() },
             )
+            AndroidHomePicker(androidHome)
             DialogOverlay(
                 visible = confirmExit,
                 title = "Exit PocketDeck?",
@@ -168,6 +196,7 @@ private fun TopBar(
     onTab: (Tab) -> Unit,
     onSearch: () -> Unit,
     onSettings: () -> Unit,
+    onAndroidHome: (() -> Unit)?,
 ) {
     val accent = LocalAccent.current
     Row(
@@ -225,6 +254,13 @@ private fun TopBar(
                 Icons.Rounded.Settings, "Settings", onSettings,
                 focusRequester = items[search + 1], onFocusChange = { onItemFocus(search + 1, it) },
             )
+            // Only while PocketDeck is the home screen: one press to the regular Android launcher.
+            if (onAndroidHome != null) {
+                IconPill(
+                    Icons.Rounded.PhoneAndroid, "Switch to Android home", onAndroidHome,
+                    focusRequester = items[search + 2], onFocusChange = { onItemFocus(search + 2, it) },
+                )
+            }
             Spacer(Modifier.width(10.dp))
             StatusIndicators(LocalSettings.current.showClock)
         }
@@ -238,6 +274,8 @@ private fun QuickMenu(
     onTab: (Tab) -> Unit,
     onNavigate: (String) -> Unit,
     onExit: () -> Unit,
+    isHome: Boolean,
+    onAndroidHome: () -> Unit,
 ) {
     SideMenu(
         visible = visible,
@@ -251,7 +289,12 @@ private fun QuickMenu(
             MenuItem("Search", Icons.Rounded.Search) { onNavigate(Routes.SEARCH) },
             MenuItem("ROM folders", Icons.Rounded.Folder) { onNavigate(Routes.ROM_FOLDERS) },
             MenuItem("Settings", Icons.Rounded.Settings) { onNavigate(Routes.SETTINGS) },
-            MenuItem("Exit PocketDeck", Icons.AutoMirrored.Rounded.ExitToApp, danger = true, onClick = onExit),
+            // As the home screen, "exit" means going to the regular Android launcher.
+            if (isHome) {
+                MenuItem("Switch to Android home", Icons.Rounded.PhoneAndroid, subtitle = "Press Home to come back", onClick = onAndroidHome)
+            } else {
+                MenuItem("Exit PocketDeck", Icons.AutoMirrored.Rounded.ExitToApp, danger = true, onClick = onExit)
+            },
         ),
     )
 }
