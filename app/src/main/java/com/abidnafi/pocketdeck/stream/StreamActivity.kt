@@ -34,6 +34,7 @@ import com.abidnafi.pocketdeck.data.StreamCodec
 import com.abidnafi.pocketdeck.data.StreamResolution
 import com.abidnafi.pocketdeck.data.StreamSettings
 import com.abidnafi.pocketdeck.data.db.GameEntity
+import com.abidnafi.pocketdeck.data.stream.PcDisplay
 import com.abidnafi.pocketdeck.data.stream.StreamTarget
 import com.abidnafi.pocketdeck.input.Btn
 import com.abidnafi.pocketdeck.input.ControllerDispatcher
@@ -70,6 +71,9 @@ import com.limelight.nvstream.jni.MoonBridge
 import com.limelight.preferences.PreferenceConfiguration
 import com.limelight.ui.GameGestures
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.max
@@ -120,6 +124,10 @@ class StreamActivity : ComponentActivity(), SurfaceHolder.Callback, NvConnection
     private var lastButtonState = 0
     private var desiredRefreshRate = 60f
     private var swapAB = false
+
+    /** The PC's virtual display, while this stream holds it. */
+    private var pcDisplay: PcDisplay? = null
+    private var keepAlive: Job? = null
 
     // ---- Lifecycle ------------------------------------------------------------------------------
 
@@ -200,6 +208,7 @@ class StreamActivity : ComponentActivity(), SurfaceHolder.Callback, NvConnection
 
     override fun onDestroy() {
         super.onDestroy()
+        releaseVirtualDisplay()
         controllerHandler?.destroy()
         inputCapture?.destroy()
         (getSystemService(INPUT_SERVICE) as InputManager).unregisterInputDeviceListener(keyboardTranslator)
@@ -249,9 +258,48 @@ class StreamActivity : ComponentActivity(), SurfaceHolder.Callback, NvConnection
                 return fail("Couldn't quit $otherName", "Close it on the PC, then try again. Only the device that started a game can quit it with some hosts.")
             }
         }
+        prepareVirtualDisplay(t)
         ui.connecting = "Starting ${g.title}…"
         setUpConnection(t, g, appId)
         maybeStart()
+    }
+
+    /**
+     * Has the PC switch on a virtual display at this phone's resolution before the stream starts,
+     * so Sunshine captures it rather than the PC's own screen. Says so on screen only when it takes
+     * a moment. A PC without the feature doesn't answer and nothing changes.
+     */
+    private suspend fun prepareVirtualDisplay(t: StreamTarget) {
+        val display = PcDisplay(t)
+        val (width, height) = streamSize(stream.resolution)
+        val slow = lifecycleScope.launch {
+            delay(PcDisplay.SHOW_PROGRESS_AFTER_MS)
+            ui.connecting = "Turning on the virtual display…"
+        }
+        val result = display.prepare(width, height, stream.fps)
+        slow.cancel()
+        when (result) {
+            is PcDisplay.Result.Ready -> {
+                pcDisplay = display
+                keepAlive = lifecycleScope.launch {
+                    while (isActive) {
+                        delay(PcDisplay.KEEPALIVE_INTERVAL_MS)
+                        display.keepAlive()
+                    }
+                }
+            }
+            PcDisplay.Result.Unavailable -> {}
+            is PcDisplay.Result.Failed ->
+                ui.showNotice("Couldn't turn on the virtual display, so you'll see the PC's own screen. ${result.message}")
+        }
+    }
+
+    /** Hands the virtual display back; the PC's own screen returns. */
+    private fun releaseVirtualDisplay() {
+        keepAlive?.cancel()
+        keepAlive = null
+        pcDisplay?.release()
+        pcDisplay = null
     }
 
     private var pendingOtherAppChoice: CompletableDeferred<Boolean>? = null
@@ -463,6 +511,8 @@ class StreamActivity : ComponentActivity(), SurfaceHolder.Callback, NvConnection
     }
 
     private fun fail(title: String, message: String) {
+        // The stream is over; don't keep the PC's screen dark behind the error.
+        releaseVirtualDisplay()
         ui.connecting = null
         ui.menuOpen = false
         ui.error = title to message
