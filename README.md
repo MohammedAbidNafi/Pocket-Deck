@@ -77,12 +77,17 @@ Download the latest APK from [**Releases**](https://github.com/MohammedAbidNafi/
 Or install it from a computer:
 
 ```bash
-adb install -r PocketDeck-0.4.0.apk
+adb install -r PocketDeck-0.5.0.apk
 ```
 
 ## Release notes
 
 Full notes and downloads for every version are on the [Releases page](https://github.com/MohammedAbidNafi/Pocket-Deck/releases).
+
+### 0.5.0
+
+- **Streams fit your screen:** with PocketDeck for PC's virtual display turned on, the PC switches to a display at your phone's resolution and refresh rate before the stream starts, so the stream matches your screen instead of the PC's monitor. The PC's own screen comes back when you stop streaming.
+- PCs without the virtual display stream as before, with no extra wait. If the virtual display can't turn on, PocketDeck says so and streams the PC's own screen.
 
 ### 0.4.0
 
