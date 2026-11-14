@@ -77,12 +77,18 @@ Download the latest APK from [**Releases**](https://github.com/MohammedAbidNafi/
 Or install it from a computer:
 
 ```bash
-adb install -r PocketDeck-0.5.0.apk
+adb install -r PocketDeck-0.5.1.apk
 ```
 
 ## Release notes
 
 Full notes and downloads for every version are on the [Releases page](https://github.com/MohammedAbidNafi/Pocket-Deck/releases).
+
+### 0.5.1
+
+- **Pairing finishes even if you leave the page:** pairing with a PIN used to be lost if you left PC streaming (for example to open the scanner) before entering the PIN on the PC. Sunshine paired, but the phone didn't. It now keeps going in the background.
+- **No more "pairing session already exists" (error 409):** tapping a PC that's already waiting for its PIN shows that PIN again instead of starting a second pairing Sunshine would turn down. When Sunshine still refuses, PocketDeck says what to do instead of showing the raw error.
+- Scanning a code while a PIN pairing with the same PC is still waiting now explains why the PIN is shown.
 
 ### 0.5.0
 
