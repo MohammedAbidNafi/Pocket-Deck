@@ -8,6 +8,7 @@ import com.abidnafi.pocketdeck.data.db.AppDatabase
 import com.abidnafi.pocketdeck.data.db.StreamHostEntity
 import com.limelight.binding.PlatformBinding
 import com.limelight.nvstream.http.ComputerDetails
+import com.limelight.nvstream.http.HostHttpResponseException
 import com.limelight.nvstream.http.LimelightCryptoProvider
 import com.limelight.nvstream.http.NvApp
 import com.limelight.nvstream.http.NvHTTP
@@ -38,6 +39,7 @@ import java.net.UnknownHostException
 import java.security.MessageDigest
 import java.security.cert.CertificateFactory
 import java.security.cert.X509Certificate
+import java.util.concurrent.ConcurrentHashMap
 
 /** Live, not persisted, state of a host. */
 data class HostStatus(
@@ -57,7 +59,7 @@ sealed interface PairingState {
     /** Pair with one scan: looking for the PC on the addresses in its code. */
     data class Connecting(val hostName: String) : PairingState
     /** [pin] is shown for the user to type into Sunshine; null when the PC enters it (pair with one scan). */
-    data class Waiting(val hostId: Long, val hostName: String, val pin: String?) : PairingState
+    data class Waiting(val hostId: Long, val hostName: String, val pin: String?, val note: String? = null) : PairingState
     data class Done(val hostId: Long, val hostName: String) : PairingState
     /** [hostId] is null when no host was reached. [fromScan]: retry by showing a new code, not by re-pairing. */
     data class Failed(val hostId: Long?, val message: String, val fromScan: Boolean = false) : PairingState
@@ -302,6 +304,24 @@ class HostRepository(
      */
     suspend fun pair(host: StreamHostEntity, pin: String? = null, fingerprint: String? = null): Boolean = withContext(Dispatchers.IO) {
         val fromScan = pin != null
+        // Sunshine keeps one pending pairing per client id (shared by every install, see UNIQUE_ID) until
+        // its PIN is entered or it expires, and turns down a second one with 409. So while one of ours is
+        // still waiting, show its PIN again instead of starting another.
+        pendingPairs[host.id]?.let { p ->
+            if (System.currentTimeMillis() - p.startedAt < SUNSHINE_PAIRING_TIMEOUT_MS) {
+                // A scanned code can't take over a PIN pairing already waiting: the PC app only answers
+                // requests that arrive after it showed the code. Say why the PIN is back.
+                _pairing.value = if (fromScan && p.state.pin != null) {
+                    p.state.copy(
+                        note = "You'd already started pairing with ${host.name} by PIN, and Sunshine takes one pairing " +
+                            "at a time. Finish it with this PIN, or wait 5 minutes and scan a new code.",
+                    )
+                } else {
+                    p.state
+                }
+                return@withContext false
+            }
+        }
         val st = status.value[host.id]?.takeIf { it.online } ?: refresh(host)
         if (!st.online || st.address == null) {
             _pairing.value = PairingState.Failed(host.id, "${host.name} is offline. Turn it on (or wake it) and try again.", fromScan)
@@ -316,9 +336,19 @@ class HostRepository(
                 return@withContext true
             }
             val usedPin = pin ?: PairingManager.generatePinString()
-            _pairing.value = PairingState.Waiting(host.id, host.name, if (fromScan) null else usedPin)
+            val waiting = PairingState.Waiting(host.id, host.name, if (fromScan) null else usedPin)
+            val attempt = PendingPair(waiting, System.currentTimeMillis())
+            pendingPairs[host.id] = attempt
+            _pairing.value = waiting
             val pm = http.pairingManager
-            val result = pm.pair(http.getServerInfo(true), usedPin)
+            val result = try {
+                pm.pair(http.getServerInfo(true), usedPin)
+            } catch (e: Exception) {
+                // A newer attempt replaced this one (this one outlived Sunshine's timeout): stay quiet.
+                if (!pendingPairs.remove(host.id, attempt)) return@withContext false
+                throw e
+            }
+            if (!pendingPairs.remove(host.id, attempt)) return@withContext result == PairingManager.PairState.PAIRED
             when (result) {
                 PairingManager.PairState.PAIRED -> {
                     val serverCert = pm.pairedCert
@@ -359,10 +389,27 @@ class HostRepository(
             }
         } catch (e: FileNotFoundException) {
             fail(host, "${host.name} doesn't support pairing (404).", fromScan)
+        } catch (e: HostHttpResponseException) {
+            fail(
+                host,
+                when (e.errorCode) {
+                    409 -> "${host.name} is still waiting for the PIN from an earlier pairing, from this or another device. " +
+                        "Enter that PIN in Sunshine or deny the request in Sunshine's web UI, or wait 5 minutes, then try again."
+                    408 -> if (fromScan) "The code expired. Show a new one on the PC." else "The PIN wasn't entered in time. Try again."
+                    503 -> "Too many devices are waiting to pair with ${host.name}. Deny the old requests in Sunshine's web UI, or wait 5 minutes."
+                    else -> e.message ?: "Pairing failed."
+                },
+                fromScan,
+            )
         } catch (e: Exception) {
             fail(host, e.message ?: "Pairing failed.", fromScan)
         }
     }
+
+    /** A pairing whose PIN Sunshine is waiting for. */
+    private class PendingPair(val state: PairingState.Waiting, val startedAt: Long)
+
+    private val pendingPairs = ConcurrentHashMap<Long, PendingPair>()
 
     private fun fail(host: StreamHostEntity, message: String, fromScan: Boolean = false): Boolean {
         _pairing.value = PairingState.Failed(host.id, message, fromScan)
@@ -396,6 +443,14 @@ class HostRepository(
         val (address, details) = found
         val host = upsert(details, localAddress = null, httpPort = code.httpPort, manual = true, manualAddress = address)
         pair(host, pin = code.pin, fingerprint = code.fingerprint)
+    }
+
+    /**
+     * Starts [pair] in the app's scope. Pairing waits on the user at the PC, and leaving the page meanwhile
+     * (say, to open the scanner) must not cancel it: Sunshine would finish pairing but we'd keep nothing.
+     */
+    fun startPair(host: StreamHostEntity) {
+        scope.launch { pair(host) }
     }
 
     /** Starts [pairFromScan] in the app's scope, so leaving the scanner page doesn't cancel it. */
@@ -508,6 +563,9 @@ class HostRepository(
         private fun sha256Hex(bytes: ByteArray): String =
             MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
         private const val DISCOVERY_INTERVAL_MS = 1500
+
+        /** Sunshine drops a pairing whose PIN isn't entered within 5 minutes (PAIRING_SESSION_TIMEOUT). */
+        private const val SUNSHINE_PAIRING_TIMEOUT_MS = 5 * 60_000L
 
         /** `host`, `host:port`, `[v6]` or `[v6]:port` → address + HTTP port. */
         fun parseAddress(input: String): Pair<String, Int>? {
