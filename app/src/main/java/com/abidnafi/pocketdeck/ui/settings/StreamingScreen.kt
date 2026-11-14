@@ -129,9 +129,7 @@ fun StreamingScreen(nav: NavController) {
         scope.launch { container.settings.setStream(block(stream)) }
     }
 
-    fun pair(host: StreamHostEntity) {
-        scope.launch { hostsRepo.pair(host) }
-    }
+    fun pair(host: StreamHostEntity) = hostsRepo.startPair(host)
 
     SettingsPage(
         "PC streaming",
@@ -301,7 +299,7 @@ fun StreamingScreen(nav: NavController) {
             addingManual = false
             scope.launch {
                 when (val r = hostsRepo.addManual(text)) {
-                    is HostRepository.AddResult.Ok -> if (!r.host.paired) hostsRepo.pair(r.host)
+                    is HostRepository.AddResult.Ok -> if (!r.host.paired) hostsRepo.startPair(r.host)
                     is HostRepository.AddResult.Error -> messages.show("Couldn't add that PC", r.message)
                 }
             }
@@ -439,6 +437,10 @@ fun PairingOverlay(onScanAgain: (() -> Unit)?) {
                     } else {
                         Text("Pair with ${state.hostName}", style = MaterialTheme.typography.headlineMedium, color = Palette.Text)
                         Spacer(Modifier.height(10.dp))
+                        state.note?.let {
+                            Text(it, style = MaterialTheme.typography.bodyLarge, color = Palette.Text)
+                            Spacer(Modifier.height(10.dp))
+                        }
                         Text(
                             "On the PC, open Sunshine's web page (https://localhost:47990), go to the PIN tab and enter:",
                             style = MaterialTheme.typography.bodyLarge, color = Palette.TextDim,
@@ -486,7 +488,7 @@ fun PairingOverlay(onScanAgain: (() -> Unit)?) {
                                 }
                                 !state.fromScan && host != null -> {
                                     ConsoleButton("Close", { hostsRepo.cancelPairingUi() })
-                                    ConsoleButton("Try again", { scope.launch { hostsRepo.pair(host) } }, primary = true, focusRequester = button)
+                                    ConsoleButton("Try again", { hostsRepo.startPair(host) }, primary = true, focusRequester = button)
                                 }
                                 else -> ConsoleButton("Close", { hostsRepo.cancelPairingUi() }, focusRequester = button)
                             }
