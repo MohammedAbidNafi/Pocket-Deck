@@ -105,6 +105,25 @@ class PcDisplay(private val target: StreamTarget) {
         }
     }
 
+    /** What the PC answers when this phone registers for play from anywhere. */
+    data class Registration(val pcId: String, val relayUrl: String?)
+
+    /**
+     * Registers this phone's tunnel endpoint id with the PC (play from anywhere). Only works on the
+     * LAN with a paired client certificate. Null when the PC doesn't have the feature or refused.
+     */
+    suspend fun registerRemote(phoneId: String): Registration? = withContext(Dispatchers.IO) {
+        try {
+            val (code, body) = post(PATH_REMOTE, """{"id":"$phoneId"}""", SHORT_TIMEOUT_MS)
+            if (code != 200) return@withContext null
+            val json = runCatching { parser.parseToJsonElement(body) as? JsonObject }.getOrNull() ?: return@withContext null
+            val id = json["id"]?.jsonPrimitive?.contentOrNull ?: return@withContext null
+            Registration(id, json["relay"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() })
+        } catch (e: IOException) {
+            null
+        }
+    }
+
     /** Hands the display back so the PC's own screen returns. Fire and forget. */
     fun release() {
         Thread {
@@ -122,6 +141,8 @@ class PcDisplay(private val target: StreamTarget) {
         const val PATH_PREPARE = "/pocketdeck/v1/display/prepare"
         const val PATH_KEEPALIVE = "/pocketdeck/v1/display/keepalive"
         const val PATH_RELEASE = "/pocketdeck/v1/display/release"
+        /** Play from anywhere registration; contract in `Pocket-Deck-PC/docs/remote-play.md`. */
+        const val PATH_REMOTE = "/pocketdeck/v1/remote"
 
         /** The PC's lease is 90 s; renewing every 20 s survives a few lost requests. */
         const val KEEPALIVE_INTERVAL_MS = 20_000L

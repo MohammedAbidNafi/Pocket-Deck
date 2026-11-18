@@ -11,11 +11,12 @@ import androidx.room.RoomDatabase
         GameEntity::class, RomFolderEntity::class, CollectionEntity::class, CollectionGameEntity::class,
         PlaySessionEntity::class, StreamHostEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = true,
     // v2: play_sessions (per-launch history for the game info page).
     // v3: stream_hosts + streaming columns on games (PC streaming). Existing data is kept.
-    autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3)],
+    // v4: remoteId + relayUrl on stream_hosts (play from anywhere).
+    autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3), AutoMigration(from = 3, to = 4)],
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun games(): GameDao

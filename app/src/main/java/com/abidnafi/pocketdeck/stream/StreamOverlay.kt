@@ -65,6 +65,8 @@ class StreamUiState {
     var poorConnection by mutableStateOf(false)
     var notice by mutableStateOf<String?>(null)
     var noticeId by mutableStateOf(0)
+    /** Play from anywhere: "LAN · 3 ms" or "Internet · 34 ms" while tunnelled, else null. */
+    var link by mutableStateOf<String?>(null)
 
     /** True when PocketDeck's UI, not the PC, should get the controller. */
     val capturesInput: Boolean get() = connecting != null || error != null || otherAppRunning != null || menuOpen || confirmQuit
@@ -112,6 +114,16 @@ fun StreamOverlay(ui: StreamUiState, actions: StreamActions) {
             modifier = Modifier.align(Alignment.TopEnd),
         ) {
             Pill("Weak connection", Palette.Danger, Modifier.padding(16.dp))
+        }
+
+        // How the tunnel reaches the PC, while the menu is open.
+        val link = ui.link
+        AnimatedVisibility(
+            ui.menuOpen && link != null,
+            enter = fadeIn(), exit = fadeOut(),
+            modifier = Modifier.align(Alignment.BottomStart),
+        ) {
+            Pill(link.orEmpty(), Palette.SurfaceHigher, Modifier.padding(16.dp))
         }
 
         // Transient notices (replaces the engine's toasts).

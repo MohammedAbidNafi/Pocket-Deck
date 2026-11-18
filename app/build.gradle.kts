@@ -13,8 +13,8 @@ android {
         applicationId = "com.abidnafi.pocketdeck"
         minSdk = 26
         targetSdk = 36
-        versionCode = 6
-        versionName = "0.5.1"
+        versionCode = 7
+        versionName = "0.6.0"
     }
 
     // Release signing key, supplied through environment variables (CI secrets or your shell).
@@ -56,7 +56,44 @@ android {
             excludes += "/META-INF/*.md"
         }
     }
+
+    // Same NDK as the streaming engine; the tunnel library below is built with it.
+    ndkVersion = "29.0.14206865"
+    sourceSets.getByName("main").jniLibs.directories.add(layout.buildDirectory.dir("rustJniLibs").get().asFile.path)
 }
+
+// Play from anywhere: the Rust tunnel (rust/pocketdeck-tunnel-jni, built on Pocket-Deck-PC's
+// crates/remote) as libpocketdeck_tunnel_jni.so. Needs Rust (rustup picks the toolchain from
+// rust/rust-toolchain.toml) and cargo-ndk (`cargo install cargo-ndk`).
+val tunnelCrate = rootProject.file("rust/pocketdeck-tunnel-jni")
+val tunnelOut = layout.buildDirectory.dir("rustJniLibs")
+val buildTunnel = tasks.register<Exec>("buildTunnelLib") {
+    description = "Builds the play-from-anywhere tunnel library with cargo-ndk."
+    workingDir = tunnelCrate
+    inputs.files(fileTree(tunnelCrate.resolve("src")), tunnelCrate.resolve("Cargo.toml"))
+    inputs.files(fileTree(rootProject.file("../Pocket-Deck-PC/crates/remote/src")))
+    outputs.dir(tunnelOut)
+    val ndk = androidComponents.sdkComponents.ndkDirectory
+    doFirst { environment("ANDROID_NDK_HOME", ndk.get().asFile.absolutePath) }
+    commandLine(
+        "cargo", "ndk",
+        "-t", "arm64-v8a", "-t", "armeabi-v7a", "-t", "x86_64",
+        "-P", "26",
+        "build", "--release",
+    )
+    // Only our library goes into the APK (cargo-ndk's -o would also copy iroh's own cdylibs).
+    val abis = mapOf("arm64-v8a" to "aarch64-linux-android", "armeabi-v7a" to "armv7-linux-androideabi", "x86_64" to "x86_64-linux-android")
+    val target = tunnelCrate.resolve("target")
+    val out = tunnelOut.get().asFile
+    doLast {
+        out.deleteRecursively()
+        for ((abi, triple) in abis) {
+            val lib = target.resolve("$triple/release/libpocketdeck_tunnel_jni.so")
+            lib.copyTo(out.resolve("$abi/${lib.name}"), overwrite = true)
+        }
+    }
+}
+tasks.matching { it.name.startsWith("merge") && it.name.endsWith("JniLibFolders") }.configureEach { dependsOn(buildTunnel) }
 
 ksp {
     arg("room.schemaLocation", "$projectDir/schemas")

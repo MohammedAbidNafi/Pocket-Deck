@@ -16,6 +16,7 @@ PocketDeck is a normal app by default: you open it like any other app (or from i
 
 - **One library for everything:** ROMs from folders you pick, Android games you have installed, games on your gaming PC, and any other app you choose to add.
 - **PC game streaming:** pair a PC running [Sunshine](https://github.com/LizardByte/Sunshine), and its games join your library and stream inside PocketDeck, with video, audio, controller (including rumble and motion), mouse, touch and keyboard. See [PC streaming](#pc-streaming).
+- **Play from anywhere:** with [PocketDeck for PC](https://github.com/MohammedAbidNafi/Pocket-Deck-PC), stream your PC games on mobile data or any Wi-Fi, with no Tailscale, VPN, port forwarding or router setup. Nothing to switch: PocketDeck reaches your PC the same way at home and away. **The stream always goes straight from your PC to your phone**, peer to peer. A small relay only introduces the two, and PocketDeck never streams through it. See [Play from anywhere](#play-from-anywhere).
 - **ROM scanning through the Storage Access Framework.** You pick a folder, and PocketDeck works out the system from the file extension and the folder names (picking `…/ROMs/snes` maps to SNES). It doesn't need broad storage permissions.
 - **Emulator handoff:** each system gets a default emulator, and launch settings can be changed per system. Games open with the right intent, extras and core.
 - **Box art** is downloaded on demand from [libretro-thumbnails](https://github.com/libretro-thumbnails/libretro-thumbnails) and cached on the device. App icons are used for Android games, and PC games use the covers from Sunshine.
@@ -44,11 +45,21 @@ PocketDeck streams games from a Windows, Linux or macOS PC running [Sunshine](ht
 
 The same settings page sets resolution (up to 4K, or the device's native resolution), frame rate (30–120), bitrate, codec (H.264, HEVC, AV1), HDR, surround audio and frame pacing. From a game's menu you can also wake a sleeping PC (Wake-on-LAN) or quit what's running on it.
 
+### Play from anywhere
+
+With [PocketDeck for PC](https://github.com/MohammedAbidNafi/Pocket-Deck-PC) 0.3.0 or newer (and its virtual display set up), your PC's games stream wherever you are: on mobile data, at a friend's place, on hotel Wi-Fi.
+
+- **Set up once, at home:** pair the PC as usual on your home network. PocketDeck signs up for play from anywhere by itself the next time it sees the PC there.
+- **Then just play:** there's nothing to switch on the phone. PocketDeck connects to your PC the same way at home and away, and a chip in the stream menu shows how: **LAN** at home, **Internet** when you're out, with the round-trip time.
+- **Direct, not relayed:** a small relay only helps the phone and the PC find each other through routers. The stream itself always goes directly between them, so it's as fast as your connections allow and your games never pass through someone else's server. If a network blocks direct connections, PocketDeck shows *"Can't reach your PC directly on this network"* instead of streaming through the relay. Try another network or a hotspot.
+- **Sensible on data:** over the internet, the default bitrate is capped at 20 Mbps. Change it in the stream settings.
+- **Private:** only phones that are still paired in Sunshine are let in. Unpair a phone on the PC and it can't connect from anywhere.
+
 **If it doesn't connect or the controller doesn't work, check the PC:**
 
 - **Firewall:** Windows Defender must allow Sunshine inbound (TCP 47984, 47989, 47990, 48010 and UDP 47998–48000, 48002, 48010). If your network is marked *Public*, make sure the rule covers that profile, or mark your home network *Private*.
 - **Controller:** Sunshine on Windows needs the [ViGEmBus](https://github.com/nefarius/ViGEmBus/releases) driver to create a virtual controller. If Sunshine's log says *"ViGEmBus is not installed or running"*, install it and restart Sunshine.
-- **Same network:** the device and the PC must be on the same LAN. Some routers isolate Wi-Fi devices from each other or from wired ones.
+- **Same network (for pairing):** pair, and let PocketDeck sign up for play from anywhere, on the PC's own network. Without PocketDeck for PC, streaming needs the same network every time. Some routers isolate Wi-Fi devices from each other or from wired ones.
 
 ## Supported systems
 
@@ -69,20 +80,27 @@ Launch templates live in [`app/src/main/assets/emulators.json`](app/src/main/ass
 - Android 8.0 (API 26) or newer, targeting API 36
 - Runs in landscape, on phones, handhelds and Android TV. A touchscreen, gamepad and Leanback are all optional.
 - PC streaming: a PC running Sunshine on the same network, and a device with a hardware video decoder (H.264 at least; HEVC or AV1 for better quality at the same bitrate).
+- Play from anywhere: [PocketDeck for PC](https://github.com/MohammedAbidNafi/Pocket-Deck-PC) 0.3.0 or newer on the PC, with its virtual display set up.
 
 ## Install
 
-Download the latest APK from [**Releases**](https://github.com/MohammedAbidNafi/Pocket-Deck/releases/latest) and open it on your device (allow installs from unknown sources). It's about 25 MB, mostly the streaming engine for arm64-v8a, armeabi-v7a and x86_64. A new release is published automatically whenever the version number changes on `main`.
+Download the latest APK from [**Releases**](https://github.com/MohammedAbidNafi/Pocket-Deck/releases/latest) and open it on your device (allow installs from unknown sources). It's about 55 MB, mostly the streaming engine and the play-from-anywhere tunnel for arm64-v8a, armeabi-v7a and x86_64. A new release is published automatically whenever the version number changes on `main`.
 
 Or install it from a computer:
 
 ```bash
-adb install -r PocketDeck-0.5.1.apk
+adb install -r PocketDeck-0.6.0.apk
 ```
 
 ## Release notes
 
 Full notes and downloads for every version are on the [Releases page](https://github.com/MohammedAbidNafi/Pocket-Deck/releases).
+
+### 0.6.0
+
+- **Play from anywhere:** stream your PC games on mobile data or any Wi-Fi, with no Tailscale, VPN or router setup. PocketDeck reaches your PC the same way at home and away, so there's nothing to switch. The stream always goes directly between the phone and the PC; a small relay only introduces them, and PocketDeck refuses to stream through it ("Can't reach your PC directly on this network"). Needs PocketDeck for PC 0.3.0 with its virtual display; your phone signs up by itself the next time it's home.
+- **See how you're connected:** the stream menu shows **LAN** or **Internet** with the round-trip time, and the stream starts with a short "Connected directly" note.
+- **Friendlier on mobile data:** over the internet the default bitrate is capped at 20 Mbps, and packets are sized to get through more networks.
 
 ### 0.5.1
 
@@ -137,6 +155,8 @@ You need JDK 17 or newer and the Android SDK (compile SDK 37). Opening the proje
 ./gradlew testDebugUnitTest
 ```
 
+The play-from-anywhere tunnel is Rust: the build also needs rustup (it installs the version pinned in `rust/rust-toolchain.toml`), [cargo-ndk](https://github.com/bbqsrc/cargo-ndk) (`cargo install cargo-ndk`), and [Pocket-Deck-PC](https://github.com/MohammedAbidNafi/Pocket-Deck-PC) cloned next to this repository, since the tunnel crate lives there.
+
 On Windows, use `gradlew.bat`. Release builds are minified and resource-shrunk with R8. The native engine is built with CMake rather than upstream's ndk-build files, because ndk-build fails when the project or SDK path contains spaces.
 
 ## Tech stack
@@ -147,6 +167,7 @@ On Windows, use `gradlew.bat`. Release builds are minified and resource-shrunk w
 - Glance for the home-screen widget
 - kotlinx.serialization for the system and emulator definitions
 - PC streaming: the [Moonlight](https://github.com/moonlight-stream/moonlight-android) engine and [moonlight-common-c](https://github.com/moonlight-stream/moonlight-common-c) (GameStream protocol, RTSP, ENet, Opus, OpenSSL), MediaCodec for video decoding, Bouncy Castle for pairing certificates, and jmDNS / NsdManager for discovery
+- Play from anywhere: a Rust tunnel on [iroh](https://github.com/n0-computer/iroh) (direct QUIC connections with hole punching), shared with PocketDeck for PC and loaded over JNI
 
 ## Project layout
 
@@ -166,6 +187,7 @@ app/src/main/java/com/abidnafi/pocketdeck/
 ├── ui/            # Compose screens: home, library, details, search, collections, settings, onboarding
 └── widget/        # Glance home-screen widget and its setup and launch activities
 
+rust/              # Play from anywhere: JNI wrapper around Pocket-Deck-PC's tunnel crate
 moonlight/         # Moonlight streaming engine (Java + native), vendored without any of its UI
 └── UPSTREAM.md    # Upstream version and every local change
 ```
@@ -176,6 +198,7 @@ Designed and developed by [Abid Nafi](https://abidnafi.com) ([GitHub](https://gi
 
 - PC streaming is powered by [Moonlight for Android](https://github.com/moonlight-stream/moonlight-android) and [moonlight-common-c](https://github.com/moonlight-stream/moonlight-common-c) by Cameron Gutman and the Moonlight contributors (GPLv3). Only the streaming engine is used; [`moonlight/UPSTREAM.md`](moonlight/UPSTREAM.md) lists the version and every local change. Thank you!
 - PC streaming works with [Sunshine](https://github.com/LizardByte/Sunshine) by LizardByte, which isn't included.
+- Play from anywhere uses [iroh](https://github.com/n0-computer/iroh) by n0 (MIT / Apache 2.0).
 - The streaming engine bundles ENet and nanors (MIT), Opus (BSD), OpenSSL (Apache 2.0), Bouncy Castle (MIT), JCodec (BSD), JmDNS (Apache 2.0) and ShieldControllerExtensions (MIT). The full list is in [`NOTICE`](NOTICE) and on the app's About screen.
 - Box art comes from the [libretro-thumbnails](https://github.com/libretro-thumbnails/libretro-thumbnails) project. Each image belongs to its respective owner.
 - The Android robot is reproduced or modified from work created and shared by Google, and used under the [Creative Commons 3.0 Attribution License](https://creativecommons.org/licenses/by/3.0/).

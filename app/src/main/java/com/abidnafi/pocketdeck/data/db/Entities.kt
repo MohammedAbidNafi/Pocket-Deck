@@ -75,6 +75,13 @@ data class StreamHostEntity(
     val serverCert: String? = null,
     val addedAt: Long,
     val lastSeenAt: Long? = null,
+    /**
+     * Play from anywhere: the PC's iroh endpoint id, given when this phone registered on the LAN.
+     * Once set, the PC is always reached through the tunnel. See `Pocket-Deck-PC/docs/remote-play.md`.
+     */
+    val remoteId: String? = null,
+    /** The relay the PC uses to be found away from home; null = local network only. */
+    val relayUrl: String? = null,
 ) {
     val paired: Boolean get() = serverCert != null
 
