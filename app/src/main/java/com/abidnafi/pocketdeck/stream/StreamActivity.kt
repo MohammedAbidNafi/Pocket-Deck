@@ -35,7 +35,9 @@ import com.abidnafi.pocketdeck.data.StreamResolution
 import com.abidnafi.pocketdeck.data.StreamSettings
 import com.abidnafi.pocketdeck.data.db.GameEntity
 import com.abidnafi.pocketdeck.data.stream.PcDisplay
+import com.abidnafi.pocketdeck.data.stream.HostRepository
 import com.abidnafi.pocketdeck.data.stream.StreamTarget
+import com.abidnafi.pocketdeck.data.stream.TunnelLink
 import com.abidnafi.pocketdeck.input.Btn
 import com.abidnafi.pocketdeck.input.ControllerDispatcher
 import com.abidnafi.pocketdeck.input.HintRegistry
@@ -94,6 +96,9 @@ class StreamActivity : ComponentActivity(), SurfaceHolder.Callback, NvConnection
         private const val REFERENCE_WIDTH = 1280
         private const val REFERENCE_HEIGHT = 720
 
+        /** Default bitrate cap when the tunnel reaches the PC over the internet. */
+        private const val INTERNET_DEFAULT_BITRATE_KBPS = 20_000
+
         fun intent(context: Context, gameId: Long): Intent =
             Intent(context, StreamActivity::class.java).putExtra(EXTRA_GAME, gameId)
     }
@@ -128,6 +133,9 @@ class StreamActivity : ComponentActivity(), SurfaceHolder.Callback, NvConnection
     /** The PC's virtual display, while this stream holds it. */
     private var pcDisplay: PcDisplay? = null
     private var keepAlive: Job? = null
+
+    /** Watches the play-from-anywhere tunnel while this stream holds it. */
+    private var tunnelWatch: Job? = null
 
     // ---- Lifecycle ------------------------------------------------------------------------------
 
@@ -209,6 +217,7 @@ class StreamActivity : ComponentActivity(), SurfaceHolder.Callback, NvConnection
     override fun onDestroy() {
         super.onDestroy()
         releaseVirtualDisplay()
+        releaseTunnel()
         controllerHandler?.destroy()
         inputCapture?.destroy()
         (getSystemService(INPUT_SERVICE) as InputManager).unregisterInputDeviceListener(keyboardTranslator)
@@ -241,6 +250,7 @@ class StreamActivity : ComponentActivity(), SurfaceHolder.Callback, NvConnection
         val t = container.hosts.target(host)
             ?: return fail("Can't reach ${host.name}", "Make sure the PC is on, Sunshine is running, and you're on the same network.")
         target = t
+        if (t.tunnelled) holdTunnel(host.name)
         val appId = g.streamAppId ?: return fail("Can't stream", "This game has no app on ${host.name}.")
 
         // Something else running on the PC? Ask before closing it.
@@ -302,12 +312,47 @@ class StreamActivity : ComponentActivity(), SurfaceHolder.Callback, NvConnection
         pcDisplay = null
     }
 
+    /**
+     * Keeps the tunnel open for this stream and ends the stream if it loses its direct path. The
+     * relay never carries a stream, so there is nothing to fall back to.
+     */
+    private fun holdTunnel(hostName: String) {
+        val tunnel = container.hosts.tunnel
+        tunnel.hold()
+        tunnelWatch = lifecycleScope.launch {
+            while (isActive) {
+                val st = tunnel.status()
+                ui.link = st.label
+                if (st.closed) {
+                    if (!reportedEnd) {
+                        reportedEnd = true
+                        stopConnection()
+                        fail("Lost the connection to $hostName", HostRepository.NO_DIRECT_PATH + " Try again on another network, or at home.")
+                    }
+                    break
+                }
+                delay(1000)
+            }
+        }
+    }
+
+    private fun releaseTunnel() {
+        val watch = tunnelWatch ?: return
+        watch.cancel()
+        tunnelWatch = null
+        container.hosts.tunnel.release()
+    }
+
     private var pendingOtherAppChoice: CompletableDeferred<Boolean>? = null
 
     private fun setUpConnection(t: StreamTarget, g: GameEntity, appId: Int) {
         val s = stream
         val (width, height) = streamSize(s.resolution)
         prefConfig = buildPreferences(s, width, height)
+        // Over the internet, the default bitrate is capped (a chosen bitrate is kept as it is).
+        if (t.tunnelled && s.bitrateKbps <= 0 && container.hosts.tunnel.status().link == TunnelLink.INTERNET) {
+            prefConfig.bitrate = prefConfig.bitrate.coerceAtMost(INTERNET_DEFAULT_BITRATE_KBPS)
+        }
         ui.showStats = s.showStats
 
         MediaCodecHelper.initialize(this, GlRenderer.get(this))
@@ -360,7 +405,8 @@ class StreamActivity : ComponentActivity(), SurfaceHolder.Callback, NvConnection
             .setBitrate(prefConfig.bitrate)
             .setEnableSops(s.optimizeHostSettings)
             .enableLocalAudioPlayback(s.playHostAudio)
-            .setMaxPacketSize(1392)
+            // Through the tunnel each packet rides one QUIC datagram, so keep them small.
+            .setMaxPacketSize(if (t.tunnelled) 1024 else 1392)
             .setRemoteConfiguration(StreamConfiguration.STREAM_CFG_AUTO)
             .setSupportedVideoFormats(formats)
             .setAttachedGamepadMask(ControllerHandler.getAttachedControllerMask(this).toInt())
@@ -615,6 +661,7 @@ class StreamActivity : ComponentActivity(), SurfaceHolder.Callback, NvConnection
         connecting = false
         connected = true
         ui.connecting = null
+        ui.link?.let { ui.showNotice("Connected directly · $it") }
         surface.postDelayed({ if (!ui.menuOpen) inputCapture?.enableCapture() }, 500)
         hideSystemBars()
         surface.requestFocus()

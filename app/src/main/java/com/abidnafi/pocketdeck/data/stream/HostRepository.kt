@@ -52,6 +52,10 @@ data class HostStatus(
     /** App currently running on the host, 0 = none. */
     val runningAppId: Int = 0,
     val error: String? = null,
+    /** Reached through the play-from-anywhere tunnel ([address] is 127.0.0.1). */
+    val tunnel: Boolean = false,
+    /** [address]'s HTTP port: the host's own, or the tunnel's (the same number). */
+    val httpPort: Int = 0,
 )
 
 sealed interface PairingState {
@@ -73,6 +77,8 @@ class StreamTarget(
     val httpsPort: Int,
     val serverCert: X509Certificate,
     val crypto: LimelightCryptoProvider,
+    /** Through the play-from-anywhere tunnel: Moonlight talks to 127.0.0.1. */
+    val tunnelled: Boolean = false,
 ) {
     val uniqueId: String get() = UNIQUE_ID
 }
@@ -91,6 +97,8 @@ class HostRepository(
     private val context: Context,
     db: AppDatabase,
     private val scope: CoroutineScope,
+    /** Play from anywhere: once a host has a `remoteId`, it is reached through this. */
+    val tunnel: RemoteTunnel,
 ) {
     private val hostsDao = db.streamHosts()
     private val gamesDao = db.games()
@@ -245,10 +253,39 @@ class HostRepository(
 
     // ---- Reachability ---------------------------------------------------------------------------
 
-    /** Polls one host on each of its addresses; returns its new status. */
+    /**
+     * Polls one host and returns its new status. A host registered for play from anywhere is reached
+     * through the tunnel, at home and away. Its LAN addresses are only a fallback, for a PC whose
+     * tunnel isn't running (PocketDeck for PC removed or too old). Both are direct.
+     */
     suspend fun refresh(host: StreamHostEntity): HostStatus = withContext(Dispatchers.IO) {
         val cert = cert(host)
         var lastError: String? = null
+        val remoteId = host.remoteId
+        if (remoteId != null) {
+            try {
+                val ports = tunnel.open(remoteId, host.relayUrl)
+                val details = http(RemoteTunnel.LOCALHOST, ports.http, 0, cert).getComputerDetails(true)
+                if (details.uuid == host.uuid) {
+                    val st = HostStatus(
+                        online = true,
+                        address = RemoteTunnel.LOCALHOST,
+                        httpsPort = ports.https,
+                        hostSaysPaired = details.pairState == PairingManager.PairState.PAIRED,
+                        runningAppId = details.runningGameId,
+                        tunnel = true,
+                        httpPort = ports.http,
+                    )
+                    _status.update { it + (host.id to st) }
+                    seen(host, details)
+                    return@withContext st
+                }
+            } catch (e: TunnelException) {
+                lastError = if (e.noDirectPath) NO_DIRECT_PATH else e.message
+            } catch (e: Exception) {
+                lastError = e.message
+            }
+        }
         for (address in host.addresses) {
             try {
                 val details = http(address, host.httpPort, 0, cert).getComputerDetails(true)
@@ -259,26 +296,50 @@ class HostRepository(
                     httpsPort = details.httpsPort,
                     hostSaysPaired = details.pairState == PairingManager.PairState.PAIRED,
                     runningAppId = details.runningGameId,
+                    httpPort = host.httpPort,
                 )
                 _status.update { it + (host.id to st) }
-                writeLock.withLock {
-                    hostsDao.get(host.id)?.let { h ->
-                        hostsDao.update(
-                            h.copy(
-                                name = details.name,
-                                lastSeenAt = System.currentTimeMillis(),
-                                macAddress = details.macAddress?.takeIf { it != "00:00:00:00:00:00" } ?: h.macAddress,
-                                remoteAddress = details.remoteAddress?.address ?: h.remoteAddress,
-                            ),
-                        )
-                    }
-                }
+                seen(host, details)
+                if (remoteId == null) registerRemote(host, st)
                 return@withContext st
             } catch (e: Exception) {
                 lastError = e.message
             }
         }
         HostStatus(online = false, error = lastError).also { st -> _status.update { it + (host.id to st) } }
+    }
+
+    private suspend fun seen(host: StreamHostEntity, details: ComputerDetails) = writeLock.withLock {
+        hostsDao.get(host.id)?.let { h ->
+            hostsDao.update(
+                h.copy(
+                    name = details.name,
+                    lastSeenAt = System.currentTimeMillis(),
+                    macAddress = details.macAddress?.takeIf { it != "00:00:00:00:00:00" } ?: h.macAddress,
+                    remoteAddress = details.remoteAddress?.address ?: h.remoteAddress,
+                ),
+            )
+        }
+    }
+
+    /** Hosts already asked this run, so a PC without the feature isn't asked on every refresh. */
+    private val registerTried = ConcurrentHashMap.newKeySet<Long>()
+
+    /**
+     * Play from anywhere: registers this phone with a paired PC it just reached on the LAN. From then
+     * on the PC is reached through the tunnel. Best effort, once per app run; a PC without the
+     * feature doesn't answer.
+     */
+    private suspend fun registerRemote(host: StreamHostEntity, st: HostStatus) {
+        val cert = cert(host) ?: return
+        if (!st.hostSaysPaired || st.address == null || !registerTried.add(host.id)) return
+        val target = StreamTarget(host, st.address, host.httpPort, st.httpsPort, cert, crypto)
+        val phoneId = runCatching { tunnel.phoneId }.getOrNull() ?: return
+        val reg = PcDisplay(target).registerRemote(phoneId) ?: return
+        writeLock.withLock {
+            hostsDao.get(host.id)?.let { h -> hostsDao.update(h.copy(remoteId = reg.pcId, relayUrl = reg.relayUrl)) }
+        }
+        android.util.Log.i(TAG, "Registered for play from anywhere with ${host.name}")
     }
 
     /** Refreshes every host and re-syncs the games of paired, reachable ones. Best effort. */
@@ -536,9 +597,11 @@ class HostRepository(
     /** Resolves a reachable, paired host for streaming, or null. */
     suspend fun target(host: StreamHostEntity): StreamTarget? = withContext(Dispatchers.IO) {
         val cert = cert(host) ?: return@withContext null
-        val st = status.value[host.id]?.takeIf { it.online && it.address != null } ?: refresh(host)
+        val cached = status.value[host.id]?.takeIf { it.online && it.address != null }
+        // A cached tunnel status is only good while the tunnel is still up.
+        val st = cached?.takeIf { !it.tunnel || !tunnel.status().closed } ?: refresh(host)
         if (!st.online || st.address == null) return@withContext null
-        StreamTarget(host, st.address, host.httpPort, st.httpsPort, cert, crypto)
+        StreamTarget(host, st.address, st.httpPort.takeIf { it > 0 } ?: host.httpPort, st.httpsPort, cert, crypto, tunnelled = st.tunnel)
     }
 
     suspend fun host(id: Long): StreamHostEntity? = hostsDao.get(id)
@@ -559,6 +622,9 @@ class HostRepository(
 
     companion object {
         private const val TAG = "PocketDeck.Hosts"
+
+        /** Shown when the PC was found but only through the relay. */
+        const val NO_DIRECT_PATH = "Can't reach your PC directly on this network."
 
         private fun sha256Hex(bytes: ByteArray): String =
             MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }

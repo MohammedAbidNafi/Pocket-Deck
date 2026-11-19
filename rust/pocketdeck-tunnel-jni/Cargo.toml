@@ -1,0 +1,27 @@
+[package]
+name = "pocketdeck-tunnel-jni"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.91"
+license = "GPL-3.0-only"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+jni = { version = "0.21", default-features = false }
+# iroh's DNS resolver and network monitor look up the app's Context through this on Android.
+ndk-context = "0.1"
+# The tunnel shared with the PC (Pocket-Deck-PC/crates/remote). Contract: Pocket-Deck-PC/docs/remote-play.md.
+# Built from a sibling checkout of Pocket-Deck-PC, locally and in CI (which clones it next to this repo).
+pocketdeck-remote = { path = "../../../Pocket-Deck-PC/crates/remote" }
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+strip = true
+panic = "abort"
+
+[workspace]

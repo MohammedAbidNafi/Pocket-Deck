@@ -1,0 +1,4 @@
+# Same toolchain as Pocket-Deck-PC (iroh 1.4 needs Rust 1.91+).
+[toolchain]
+channel = "1.98.0"
+targets = ["aarch64-linux-android", "armv7-linux-androideabi", "x86_64-linux-android"]

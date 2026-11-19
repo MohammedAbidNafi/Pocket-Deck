@@ -27,6 +27,15 @@ PC streaming (moonlight/ module, see moonlight/UPSTREAM.md for version and local
   JmDNS                                         Apache-2.0   JmDNS contributors
   ShieldControllerExtensions                    MIT          Cameron Gutman
 
+Play from anywhere (rust/pocketdeck-tunnel-jni, built on Pocket-Deck-PC's crates/remote):
+
+  iroh, iroh-mdns-address-lookup                MIT / Apache-2.0   n0, inc. and contributors
+      https://github.com/n0-computer/iroh
+  tokio, bytes                                  MIT                Tokio contributors
+  jni, ndk-context                              MIT / Apache-2.0   their contributors
+  The rest of the Rust crates are listed in rust/pocketdeck-tunnel-jni/Cargo.lock; all are
+  GPLv3-compatible (MIT, Apache-2.0, BSD, ISC, Zlib, Unicode-3.0, CDLA-Permissive-2.0 and similar).
+
 App:
 
   AndroidX (Compose, Activity, Core, Lifecycle, Navigation, Room, DataStore, DocumentFile,

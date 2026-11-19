@@ -91,6 +91,8 @@ private val Libraries = listOf(
     Library("JCodec", "JCodec contributors", BSD, "https://github.com/jcodec/jcodec"),
     Library("JmDNS", "JmDNS contributors", APACHE_2, "https://github.com/jmdns/jmdns"),
     Library("ShieldControllerExtensions", "Cameron Gutman", MIT, "https://github.com/cgutman/ShieldControllerExtensions"),
+    Library("iroh (play from anywhere)", "n0, inc. and contributors", "MIT / Apache License 2.0", "https://github.com/n0-computer/iroh"),
+    Library("Tokio", "Tokio contributors", MIT, "https://github.com/tokio-rs/tokio"),
 )
 
 /** About page: who made the app, open-source credits, artwork attributions and trademarks. */
@@ -223,7 +225,7 @@ fun AboutScreen(nav: NavController) {
         key("mitbsd").let { (r, f) ->
             SettingRow(
                 "MIT and BSD licences", { open("https://opensource.org/license/mit") }, icon = Icons.AutoMirrored.Rounded.OpenInNew,
-                subtitle = "Cover ENet, nanors, Bouncy Castle, ShieldControllerExtensions (MIT), Opus and JCodec (BSD)",
+                subtitle = "Cover ENet, nanors, Bouncy Castle, ShieldControllerExtensions, iroh, Tokio (MIT), Opus and JCodec (BSD)",
                 focusRequester = r, onFocusChange = f,
             )
         }
