@@ -4,7 +4,7 @@ Thanks for helping out! Bug reports, ideas and pull requests are all welcome.
 
 ## Reporting bugs and asking for features
 
-- Search [existing issues](https://github.com/MohammedAbidNafi/Pocket-Deck/issues) first.
+- Search [existing issues](https://github.com/Pocket-Deck-App/Pocket-Deck-Android/issues) first.
 - Use the **Bug report** or **Feature request** template, and include your device, Android version and PocketDeck version (Settings → About).
 - PC streaming problems: add your Sunshine version and check the [troubleshooting list](README.md#pc-streaming) (firewall, ViGEmBus, same network) first.
 - Security issues: don't open a public issue. See [SECURITY.md](SECURITY.md).

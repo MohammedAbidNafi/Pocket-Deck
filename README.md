@@ -16,7 +16,7 @@ PocketDeck is a normal app by default: you open it like any other app (or from i
 
 - **One library for everything:** ROMs from folders you pick, Android games you have installed, games on your gaming PC, and any other app you choose to add.
 - **PC game streaming:** pair a PC running [Sunshine](https://github.com/LizardByte/Sunshine), and its games join your library and stream inside PocketDeck, with video, audio, controller (including rumble and motion), mouse, touch and keyboard. See [PC streaming](#pc-streaming).
-- **Play from anywhere:** with [PocketDeck for PC](https://github.com/MohammedAbidNafi/Pocket-Deck-PC), stream your PC games on mobile data or any Wi-Fi, with no Tailscale, VPN, port forwarding or router setup. Nothing to switch: PocketDeck reaches your PC the same way at home and away. **The stream always goes straight from your PC to your phone**, peer to peer. A small relay only introduces the two, and PocketDeck never streams through it. See [Play from anywhere](#play-from-anywhere).
+- **Play from anywhere:** with [PocketDeck for PC](https://github.com/Pocket-Deck-App/Pocket-Deck-PC), stream your PC games on mobile data or any Wi-Fi, with no Tailscale, VPN, port forwarding or router setup. Nothing to switch: PocketDeck reaches your PC the same way at home and away. **The stream always goes straight from your PC to your phone**, peer to peer. A small relay only introduces the two, and PocketDeck never streams through it. See [Play from anywhere](#play-from-anywhere).
 - **ROM scanning through the Storage Access Framework.** You pick a folder, and PocketDeck works out the system from the file extension and the folder names (picking `…/ROMs/snes` maps to SNES). It doesn't need broad storage permissions.
 - **Emulator handoff:** each system gets a default emulator, and launch settings can be changed per system. Games open with the right intent, extras and core.
 - **Box art** is downloaded on demand from [libretro-thumbnails](https://github.com/libretro-thumbnails/libretro-thumbnails) and cached on the device. App icons are used for Android games, and PC games use the covers from Sunshine.
@@ -33,6 +33,16 @@ PocketDeck is a normal app by default: you open it like any other app (or from i
 - **Optional home screen:** turn on **Use as home screen** (in setup or Settings → Home screen) to make PocketDeck open when you press Home. A button in the top bar (and **Switch to Android home** in the Start menu) opens your regular launcher, and Home brings you back. Off by default.
 - **Extras:** guided onboarding (including PC pairing), UI sounds and haptics, an optional clock, and accent theming.
 
+## Part of PocketDeck
+
+PocketDeck is three repositories in the [Pocket-Deck-App](https://github.com/Pocket-Deck-App) organization:
+
+| Repository | What it is |
+|---|---|
+| **Pocket-Deck-Android** (this one) | The Android app: the game launcher and the streaming client. |
+| [Pocket-Deck-PC](https://github.com/Pocket-Deck-App/Pocket-Deck-PC) | The Windows companion: sets up Sunshine, puts your games on the phone, pairs with one scan and hosts play from anywhere. |
+| [Pocket-Deck-Relay](https://github.com/Pocket-Deck-App/Pocket-Deck-Relay) | Deployment files for the relay that helps the phone and the PC find each other. |
+
 ## PC streaming
 
 PocketDeck streams games from a Windows, Linux or macOS PC running [Sunshine](https://github.com/LizardByte/Sunshine), the open-source GameStream host. The streaming engine is [Moonlight](https://github.com/moonlight-stream/moonlight-android)'s; every screen is PocketDeck's own.
@@ -47,7 +57,7 @@ The same settings page sets resolution (up to 4K, or the device's native resolut
 
 ### Play from anywhere
 
-With [PocketDeck for PC](https://github.com/MohammedAbidNafi/Pocket-Deck-PC) 0.3.0 or newer (and its virtual display set up), your PC's games stream wherever you are: on mobile data, at a friend's place, on hotel Wi-Fi.
+With [PocketDeck for PC](https://github.com/Pocket-Deck-App/Pocket-Deck-PC) 0.3.0 or newer (and its virtual display set up), your PC's games stream wherever you are: on mobile data, at a friend's place, on hotel Wi-Fi.
 
 - **Set up once, at home:** pair the PC as usual on your home network. PocketDeck signs up for play from anywhere by itself the next time it sees the PC there.
 - **Then just play:** there's nothing to switch on the phone. PocketDeck connects to your PC the same way at home and away, and a chip in the stream menu shows how: **LAN** at home, **Internet** when you're out, with the round-trip time.
@@ -80,11 +90,11 @@ Launch templates live in [`app/src/main/assets/emulators.json`](app/src/main/ass
 - Android 8.0 (API 26) or newer, targeting API 36
 - Runs in landscape, on phones, handhelds and Android TV. A touchscreen, gamepad and Leanback are all optional.
 - PC streaming: a PC running Sunshine on the same network, and a device with a hardware video decoder (H.264 at least; HEVC or AV1 for better quality at the same bitrate).
-- Play from anywhere: [PocketDeck for PC](https://github.com/MohammedAbidNafi/Pocket-Deck-PC) 0.3.0 or newer on the PC, with its virtual display set up.
+- Play from anywhere: [PocketDeck for PC](https://github.com/Pocket-Deck-App/Pocket-Deck-PC) 0.3.0 or newer on the PC, with its virtual display set up.
 
 ## Install
 
-Download the latest APK from [**Releases**](https://github.com/MohammedAbidNafi/Pocket-Deck/releases/latest) and open it on your device (allow installs from unknown sources). It's about 55 MB, mostly the streaming engine and the play-from-anywhere tunnel for arm64-v8a, armeabi-v7a and x86_64. A new release is published automatically whenever the version number changes on `main`.
+Download the latest APK from [**Releases**](https://github.com/Pocket-Deck-App/Pocket-Deck-Android/releases/latest) and open it on your device (allow installs from unknown sources). It's about 55 MB, mostly the streaming engine and the play-from-anywhere tunnel for arm64-v8a, armeabi-v7a and x86_64. A new release is published automatically whenever the version number changes on `main`.
 
 Or install it from a computer:
 
@@ -94,7 +104,7 @@ adb install -r PocketDeck-0.6.0.apk
 
 ## Release notes
 
-Full notes and downloads for every version are on the [Releases page](https://github.com/MohammedAbidNafi/Pocket-Deck/releases).
+Full notes and downloads for every version are on the [Releases page](https://github.com/Pocket-Deck-App/Pocket-Deck-Android/releases).
 
 ### 0.6.0
 
@@ -155,7 +165,7 @@ You need JDK 17 or newer and the Android SDK (compile SDK 37). Opening the proje
 ./gradlew testDebugUnitTest
 ```
 
-The play-from-anywhere tunnel is Rust: the build also needs rustup (it installs the version pinned in `rust/rust-toolchain.toml`), [cargo-ndk](https://github.com/bbqsrc/cargo-ndk) (`cargo install cargo-ndk`), and [Pocket-Deck-PC](https://github.com/MohammedAbidNafi/Pocket-Deck-PC) cloned next to this repository, since the tunnel crate lives there.
+The play-from-anywhere tunnel is Rust: the build also needs rustup (it installs the version pinned in `rust/rust-toolchain.toml`), [cargo-ndk](https://github.com/bbqsrc/cargo-ndk) (`cargo install cargo-ndk`), and [Pocket-Deck-PC](https://github.com/Pocket-Deck-App/Pocket-Deck-PC) cloned next to this repository, since the tunnel crate lives there.
 
 On Windows, use `gradlew.bat`. Release builds are minified and resource-shrunk with R8. The native engine is built with CMake rather than upstream's ndk-build files, because ndk-build fails when the project or SDK path contains spaces.
 

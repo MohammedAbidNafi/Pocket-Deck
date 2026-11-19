@@ -60,7 +60,7 @@ jobs:
         run: |
           (cd rust && rustup toolchain install)
           cargo install cargo-ndk --locked
-          git clone --depth 1 https://github.com/MohammedAbidNafi/Pocket-Deck-PC "$GITHUB_WORKSPACE/../Pocket-Deck-PC"
+          git clone --depth 1 https://github.com/Pocket-Deck-App/Pocket-Deck-PC "$GITHUB_WORKSPACE/../Pocket-Deck-PC"
 
       # Optional: sign with your release key. Add these repository secrets to enable it:
       # RELEASE_KEYSTORE_BASE64, RELEASE_KEYSTORE_PASSWORD, RELEASE_KEY_ALIAS, RELEASE_KEY_PASSWORD.
