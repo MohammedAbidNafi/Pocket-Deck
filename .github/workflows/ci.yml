@@ -39,7 +39,7 @@ jobs:
         run: |
           (cd rust && rustup toolchain install)
           cargo install cargo-ndk --locked
-          git clone --depth 1 https://github.com/MohammedAbidNafi/Pocket-Deck-PC "$GITHUB_WORKSPACE/../Pocket-Deck-PC"
+          git clone --depth 1 https://github.com/Pocket-Deck-App/Pocket-Deck-PC "$GITHUB_WORKSPACE/../Pocket-Deck-PC"
 
       - name: Build and run unit tests
         run: ./gradlew --no-daemon assembleDebug testDebugUnitTest
